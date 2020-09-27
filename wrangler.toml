@@ -1,0 +1,10 @@
+name = "portunus-worker"
+type = "webpack"
+account_id = "ae0efcc5352882cf6f1ac3a3a40645ba"
+workers_dev = true
+route = ""
+zone_id = ""
+
+[env.production]
+zone_id = "5c9fc9248d20a5ed0b6b1f1a155ded67"
+route = "cli.mindswire.com/*"
