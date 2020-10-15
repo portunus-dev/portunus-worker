@@ -10,7 +10,7 @@ async function handleRequest(request) {
 
   r.get('/token', getToken)
   r.get('/env', getEnv)
-  r.all('/', root)
+  r.get('/', root)
 
   const resp = await r.route(request)
   return resp

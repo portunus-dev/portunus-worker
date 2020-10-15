@@ -17,15 +17,17 @@ const extractParams = searchParams => (...params) =>
 
 const getUser = user => USERS.find(u => u.email === user && u.active) || {}
 
-module.exports.root = () => () =>
-  new Response(
-    JSON.stringify({
-      cli: 'pip install -U print-env --pre',
-      'Web UI': 'wip',
-    }),
-    { headers: { 'content-type': 'application/json' } }
-  )
+module.exports.root = ({ cf }) =>
+  new Response(JSON.stringify({
+    cli: 'pip install -U print-env --pre',
+    'Web UI': 'wip',
+    cf,
+  }), {
+    headers: { 'content-type': 'application/json' },
+    status: 200,
+  })
 
+// CLI handlers
 module.exports.getToken = async ({ url }) => {
   const { searchParams } = new URL(url)
   const { user } = extractParams(searchParams)('user')
