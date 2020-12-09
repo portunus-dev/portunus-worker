@@ -69,6 +69,8 @@ module.exports.getToken = async ({ url }) => {
   })
 }
 
+const parseProj = (proj) => !isNaN(proj) && !isNaN(parseFloat(proj)) ? PROJECTS[proj] : proj
+
 module.exports.getEnv = ({ url, headers }) => {
   const token = headers.get('portunus-jwt')
   if (!token) {
@@ -110,9 +112,9 @@ module.exports.getEnv = ({ url, headers }) => {
       status: 400,
     })
   }
-  const p = project || PROJECTS[project_id]
+  const p = parseProj(project) || parseProj(project_id)
   if (!p) {
-    return new Response(JSON.stringify({ message: 'Missing project' }), {
+    return new Response(JSON.stringify({ message: 'Missing or invalid project' }), {
       headers: { 'content-type': 'application/json' },
       status: 400,
     })
