@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken')
 
-const { KV, USERS, PROJECTS } = require('./db')
+const { USERS, PROJECTS } = require('./db')
 
 // process.env is not avail in workers
 // const { TOKEN_SECRET, MAIL_PASS } = process.env
@@ -119,10 +119,8 @@ module.exports.getEnv = ({ url, headers }) => {
       status: 400,
     })
   }
-  // TODO: obviously rewire to DB (or Workers KV)
-  const vars = KV[`${team}::${p}::${stage}`] || {}
-  return new Response(
+  return KV.get(`${team}::${p}::${stage}`, 'json').then((vars) => new Response(
     JSON.stringify({ vars, encrypted: false, team, project: p, stage }), // TODO: encryption mechanism
-    { headers: { 'content-type': 'application/json' } }
-  )
+    { headers: { 'content-type': 'application/json' } },
+  ))
 }

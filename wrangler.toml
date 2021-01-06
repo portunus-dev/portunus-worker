@@ -4,6 +4,9 @@ account_id = "ae0efcc5352882cf6f1ac3a3a40645ba"
 workers_dev = true
 route = ""
 zone_id = ""
+kv_namespaces = [
+    { binding = "KV", id = "ff28952fe8204640a5e7c55d390724ff" }
+]
 
 [env.production]
 zone_id = "5c9fc9248d20a5ed0b6b1f1a155ded67"
