@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken')
 
-const { USERS, PROJECTS } = require('./db')
+const { PROJECTS } = require('./compat')
 
 // process.env is not avail in workers
 // const { TOKEN_SECRET, MAIL_PASS } = process.env
@@ -15,7 +15,12 @@ const extractParams = searchParams => (...params) =>
     return acc
   }, {})
 
-const getUser = user => USERS.find(u => u.email === user && u.active) || {}
+const getUser = email => USERS.get(email, 'json').then((u) => {
+  if (!u.active) {
+    return {}
+  }
+  return u
+})
 
 module.exports.root = ({ cf }) =>
   new Response(JSON.stringify({
@@ -31,8 +36,7 @@ module.exports.root = ({ cf }) =>
 module.exports.getToken = async ({ url }) => {
   const { searchParams } = new URL(url)
   const { user } = extractParams(searchParams)('user')
-  // TODO: obviously rewire to DB (or Workers KV)
-  const { email, jwt_uuid, team } = getUser(user)
+  const { email, jwt_uuid, team } = await getUser(user)
   if (!jwt_uuid) {
     return new Response(JSON.stringify({ message: `${user} not found` }), {
       headers: { 'content-type': 'application/json' },
@@ -71,7 +75,7 @@ module.exports.getToken = async ({ url }) => {
 
 const parseProj = (proj) => !isNaN(proj) && !isNaN(parseFloat(proj)) ? PROJECTS[proj] : proj
 
-module.exports.getEnv = ({ url, headers }) => {
+module.exports.getEnv = async ({ url, headers }) => {
   const token = headers.get('portunus-jwt')
   if (!token) {
     return new Response(
@@ -92,7 +96,7 @@ module.exports.getEnv = ({ url, headers }) => {
       status: 403,
     })
   }
-  const user = getUser(access.email)
+  const user = await getUser(access.email)
   if (user.jwt_uuid !== access.jwt_uuid) {
     return new Response(JSON.stringify({ message: 'Invalid portunus-jwt' }), {
       headers: { 'content-type': 'application/json' },
@@ -119,8 +123,9 @@ module.exports.getEnv = ({ url, headers }) => {
       status: 400,
     })
   }
-  return KV.get(`${team}::${p}::${stage}`, 'json').then((vars) => new Response(
+  const vars = await KV.get(`${team}::${p}::${stage}`, 'json')
+  return new Response(
     JSON.stringify({ vars, encrypted: false, team, project: p, stage }), // TODO: encryption mechanism
     { headers: { 'content-type': 'application/json' } },
-  ))
+  )
 }

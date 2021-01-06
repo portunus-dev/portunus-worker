@@ -5,9 +5,14 @@ workers_dev = true
 route = ""
 zone_id = ""
 kv_namespaces = [
-    { binding = "KV", id = "ff28952fe8204640a5e7c55d390724ff" }
+    { binding = "KV", id = "ff28952fe8204640a5e7c55d390724ff" },
+    { binding = "USERS", id = "b4bc01b41e0643d88ffc52a348f721ce" }
 ]
 
 [env.production]
 zone_id = "5c9fc9248d20a5ed0b6b1f1a155ded67"
 route = "cli.mindswire.com/*"
+kv_namespaces = [
+    { binding = "KV", id = "ff28952fe8204640a5e7c55d390724ff" },
+    { binding = "USERS", id = "b4bc01b41e0643d88ffc52a348f721ce" }
+]
