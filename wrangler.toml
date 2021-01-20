@@ -5,8 +5,10 @@ workers_dev = true
 route = ""
 zone_id = ""
 kv_namespaces = [
-    { binding = "KV", id = "ff28952fe8204640a5e7c55d390724ff" },
-    { binding = "USERS", id = "b4bc01b41e0643d88ffc52a348f721ce" }
+    # USERS_DEV
+    { binding = "USERS", id = "36df6ebcc3d6453e81094dd5730e30ee" },
+    # KV_DEV
+    { binding = "KV", id = "99aca84159ad4e7eb3f3048611680dd8" }
 ]
 
 [env.production]
