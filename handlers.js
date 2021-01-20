@@ -1,36 +1,23 @@
 const jwt = require('jsonwebtoken')
 
-const { PROJECTS } = require('./compat')
+const { extractParams, parseProj } = require('./modules/utils')
+const { getUser } = require('./modules/users')
 
-// process.env is not avail in workers
+// process.env is not avail in workers, direct access like KV namespaces
 // const { TOKEN_SECRET, MAIL_PASS } = process.env
 
-const extractParams = searchParams => (...params) =>
-  params.reduce((acc, k) => {
-    const v = searchParams.getAll(k)
-    if (!v.length) {
-      return acc
-    }
-    acc[k] = v.length === 1 ? v[0] : v
-    return acc
-  }, {})
-
-const getUser = email => USERS.get(email, 'json').then((u) => {
-  if (!u.active) {
-    return {}
-  }
-  return u
-})
-
 module.exports.root = ({ cf }) =>
-  new Response(JSON.stringify({
-    cli: 'pip install -U print-env --pre',
-    'Web UI': 'wip',
-    cf,
-  }), {
-    headers: { 'content-type': 'application/json' },
-    status: 200,
-  })
+  new Response(
+    JSON.stringify({
+      cli: 'pip install -U print-env --pre',
+      'Web UI': 'wip',
+      cf,
+    }),
+    {
+      headers: { 'content-type': 'application/json' },
+      status: 200,
+    },
+  )
 
 // CLI handlers
 module.exports.getToken = async ({ url }) => {
@@ -72,9 +59,6 @@ module.exports.getToken = async ({ url }) => {
     headers: { 'content-type': 'application/json' },
   })
 }
-
-const parseProj = (proj) => !isNaN(proj) && !isNaN(parseFloat(proj)) ? PROJECTS[proj] : proj
-
 module.exports.getEnv = async ({ url, headers }) => {
   const token = headers.get('portunus-jwt')
   if (!token) {
@@ -118,14 +102,17 @@ module.exports.getEnv = async ({ url, headers }) => {
   }
   const p = parseProj(project) || parseProj(project_id)
   if (!p) {
-    return new Response(JSON.stringify({ message: 'Missing or invalid project' }), {
-      headers: { 'content-type': 'application/json' },
-      status: 400,
-    })
+    return new Response(
+      JSON.stringify({ message: 'Missing or invalid project' }),
+      {
+        headers: { 'content-type': 'application/json' },
+        status: 400,
+      }
+    )
   }
   const vars = await KV.get(`${team}::${p}::${stage}`, 'json')
   return new Response(
     JSON.stringify({ vars, encrypted: false, team, project: p, stage }), // TODO: encryption mechanism
-    { headers: { 'content-type': 'application/json' } },
+    { headers: { 'content-type': 'application/json' } }
   )
 }
