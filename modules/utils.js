@@ -12,3 +12,6 @@ module.exports.extractParams = searchParams => (...params) =>
 
 module.exports.parseProj = proj =>
   !isNaN(proj) && !isNaN(parseFloat(proj)) ? PROJECTS[proj] : proj
+
+// TODO: use trained model (assisted through user labels)
+module.exports.isSecret = k => ['pass', 'pw', 'password', 'secret'].some((v) => String(k).toLowerCase().includes(v))
