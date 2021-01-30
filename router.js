@@ -15,9 +15,9 @@ const Post = Method('post')
 const Put = Method('put')
 const Trace = Method('trace')
 
-const Header = (header, val) => req => req.headers.get(header) === val
-const Host = host => Header('host', host.toLowerCase())
-const Referrer = host => Header('referrer', host.toLowerCase())
+// const Header = (header, val) => req => req.headers.get(header) === val
+// const Host = host => Header('host', host.toLowerCase())
+// const Referrer = host => Header('referrer', host.toLowerCase())
 
 const Path = regExp => req => {
   const url = new URL(req.url)

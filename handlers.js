@@ -12,7 +12,7 @@ class HTTPError extends Error {
 
 const respondError = (err) => new Response(JSON.stringify({ message: err.message }), {
   headers: { 'content-type': 'application/json' },
-  status: error.status || 500,
+  status: err.status || 500,
 })
 
 const parseJWT = async ({ url, headers }) => {
@@ -122,14 +122,14 @@ module.exports.getUIEnv = async({ url, headers }) => {
   }
 }
 
-module.exports.listUIEnvs = async({ url, headers }) => {
-  // list envs by user and team
-}
+// module.exports.listUIEnvs = async({ url, headers }) => {
+//   // list envs by user and team
+// }
 
-module.exports.listUIUsers = async({ url, headers }) => {
-  // list users of the same org
-  // need to add
-}
+// module.exports.listUIUsers = async({ url, headers }) => {
+//   // list users of the same org
+//   // need to add
+// }
 
 // CLI handlers
 module.exports.getToken = async ({ url }) => {
