@@ -1,6 +1,11 @@
 const jwt = require('jsonwebtoken')
 
-const { extractParams, parseProj, isSecret } = require('./modules/utils')
+const {
+  extractParams,
+  parseProj,
+  isSecret,
+  isHost,
+} = require('./modules/utils')
 const { getUser } = require('./modules/users')
 
 // process.env is not avail in workers, direct access like KV namespaces and secrets
@@ -13,7 +18,7 @@ class HTTPError extends Error {
 }
 
 const respondError = (err) =>
-  new Response(JSON.stringify({ message: err.message }), {
+  new Response(JSON.stringify({ message: err.message, stack: err.stack }), {
     headers: { 'content-type': 'application/json' },
     status: err.status || 500,
   })
@@ -74,13 +79,8 @@ const maskValue = (_v) => {
   return v.substring(0, c) + m.substring(0, f) + v.substring(v.length - c)
 }
 
-const maskURL = (_u) => {
-  const u = new URL(_u)
-  const p = u.protocol
-  u.protocol = 'https'
-  u.username = '**REDACTED_USER**'
-  u.password = '**REDACTED_PASS**'
-  u.hostname = u.hostname
+const maskHost = (h) =>
+  h
     .split('.')
     .map((v, i, a) => {
       const c = Math.floor(v.length / 2)
@@ -90,25 +90,45 @@ const maskURL = (_u) => {
       return v
     })
     .join('.')
-  u.pathname = '__redacted'
+
+const maskURL = (_u, isSec = false) => {
+  const u = new URL(_u)
+  const p = u.protocol
+  u.protocol = 'https'
+  if (!isSec && !u.username && !u.password) {
+    return _u
+  }
+  u.username = u.username ? '**REDACTED_USER**' : u.username
+  u.password = u.password ? '**REDACTED_PASS**' : u.password
+  u.hostname =
+    isSec || u.username || u.password ? maskHost(u.hostname) : u.hostname
+  u.pathname = isSec || u.username || u.password ? '__redacted' : u.pathname
   u.protocol = p
-  return u
+  return u.href
 }
 
-const hideValues = ({ value, metadata: { secrets = [] } }) => {
-  return Object.entries(value).map(([k, v]) => {
-    const isSec = isSecret(k) || secrets.includes(k)
-    try {
-      const url = maskURL(v)
-      return url.href
-    } catch (_) {
-      // fallthrough
-    }
-    if (isSec) {
-      return maskValue(v)
-    }
-  })
-}
+const hideValues = ({ value, metadata }) =>
+  Object.entries(value)
+    .map(([k, v]) => {
+      const isSec = isSecret(k) || ((metadata || {}).secrets || []).includes(k)
+      try {
+        const url = maskURL(v)
+        return [k, url]
+      } catch (_) {
+        // fallthrough
+      }
+      if (isSec) {
+        return [k, maskValue(v)]
+      }
+      if (isHost(k)) {
+        return [k, maskHost(v)]
+      }
+      return [k, v]
+    })
+    .reduce((acc, [k, v]) => {
+      acc[k] = v
+      return acc
+    }, {})
 
 module.exports.getUIEnv = async ({ url, headers }) => {
   // get envs without values (or partially hide) by default
@@ -121,7 +141,7 @@ module.exports.getUIEnv = async ({ url, headers }) => {
     )
     return new Response(
       JSON.stringify({
-        vars: hideValues(value),
+        vars: hideValues({ value, metadata }),
         metadata,
         encrypted: false,
         team,

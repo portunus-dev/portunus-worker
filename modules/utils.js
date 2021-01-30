@@ -15,6 +15,16 @@ module.exports.parseProj = (proj) =>
 
 // TODO: use trained model (assisted through user labels)
 module.exports.isSecret = (k) =>
-  ['pass', 'pw', 'password', 'secret'].some((v) =>
-    String(k).toLowerCase().includes(v)
-  )
+  [
+    'pass',
+    'pw',
+    'password',
+    'secret',
+    'token',
+    'key',
+    'code',
+    'user',
+    'id',
+  ].some((v) => String(k).toLowerCase().includes(v))
+
+module.exports.isHost = (k) => String(k).toLowerCase().includes('host')
