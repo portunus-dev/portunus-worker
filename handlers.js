@@ -1,11 +1,6 @@
 const jwt = require('jsonwebtoken')
 
-const {
-  extractParams,
-  parseProj,
-  isSecret,
-  isHost,
-} = require('./modules/utils')
+const { extractParams, parseProj, hideValues } = require('./modules/utils')
 const { getUser } = require('./modules/users')
 
 // process.env is not avail in workers, direct access like KV namespaces and secrets
@@ -67,68 +62,6 @@ module.exports.root = ({ cf }) =>
       status: 200,
     }
   )
-
-const maskValue = (_v) => {
-  if (!_v) {
-    return _v
-  }
-  const v = String(_v)
-  const m = v.replace(/./g, '*') // masked
-  const c = Math.min(4, Math.floor(v.length / 4)) // cutoff
-  const f = Math.min(v.length - c, 10) // filler
-  return v.substring(0, c) + m.substring(0, f) + v.substring(v.length - c)
-}
-
-const maskHost = (h) =>
-  h
-    .split('.')
-    .map((v, i, a) => {
-      const c = Math.floor(v.length / 2)
-      if (i < a.length - 2) {
-        return v.substring(0, c) + (c > 0 ? '__redacted' : '')
-      }
-      return v
-    })
-    .join('.')
-
-const maskURL = (_u, isSec = false) => {
-  const u = new URL(_u)
-  const p = u.protocol
-  u.protocol = 'https'
-  if (!isSec && !u.username && !u.password) {
-    return _u
-  }
-  u.username = u.username ? '**REDACTED_USER**' : u.username
-  u.password = u.password ? '**REDACTED_PASS**' : u.password
-  u.hostname =
-    isSec || u.username || u.password ? maskHost(u.hostname) : u.hostname
-  u.pathname = isSec || u.username || u.password ? '__redacted' : u.pathname
-  u.protocol = p
-  return u.href
-}
-
-const hideValues = ({ value, metadata }) =>
-  Object.entries(value)
-    .map(([k, v]) => {
-      const isSec = isSecret(k) || ((metadata || {}).secrets || []).includes(k)
-      try {
-        const url = maskURL(v)
-        return [k, url]
-      } catch (_) {
-        // fallthrough
-      }
-      if (isSec) {
-        return [k, maskValue(v)]
-      }
-      if (isHost(k)) {
-        return [k, maskHost(v)]
-      }
-      return [k, v]
-    })
-    .reduce((acc, [k, v]) => {
-      acc[k] = v
-      return acc
-    }, {})
 
 module.exports.getUIEnv = async ({ url, headers }) => {
   // get envs without values (or partially hide) by default
