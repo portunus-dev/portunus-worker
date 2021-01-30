@@ -1,0 +1,19 @@
+{
+    "env": {
+        "browser": true,
+        "commonjs": true,
+        "es2021": true
+    },
+    "extends": "eslint:recommended",
+    "parserOptions": {
+        "ecmaVersion": 12
+    },
+    "globals": {
+        "MAIL_PASS": "readonly",
+        "TOKEN_SECRET": "readonly",
+        "USERS": "readonly",
+        "KV": "readonly"
+    },
+    "rules": {
+    }
+}

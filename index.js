@@ -1,7 +1,7 @@
 const Router = require('./router')
 const { root, getToken, getEnv } = require('./handlers')
 
-addEventListener('fetch', event => {
+addEventListener('fetch', (event) => {
   event.respondWith(handleRequest(event.request))
 })
 

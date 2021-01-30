@@ -5,12 +5,14 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "format": "prettier --write '**/*.{js,css,json,md}'"
+    "format": "prettier --write '**/*.{js,css,jsone,md}'",
+    "lint": "eslint *.js modules/*.js"
   },
   "author": "Runzhou Li (woozyking) <runzhou.li@gmail.com>",
   "license": "ISC",
   "devDependencies": {
-    "prettier": "^1.17.0"
+    "eslint": "^7.18.0",
+    "prettier": "^2.2.1"
   },
   "dependencies": {
     "jsonwebtoken": "^8.5.1",

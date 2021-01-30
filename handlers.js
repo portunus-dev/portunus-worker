@@ -3,6 +3,8 @@ const jwt = require('jsonwebtoken')
 const { extractParams, parseProj, isSecret } = require('./modules/utils')
 const { getUser } = require('./modules/users')
 
+// process.env is not avail in workers, direct access like KV namespaces and secrets
+
 class HTTPError extends Error {
   constructor(message, status = 500) {
     super(message)
@@ -10,10 +12,11 @@ class HTTPError extends Error {
   }
 }
 
-const respondError = (err) => new Response(JSON.stringify({ message: err.message }), {
-  headers: { 'content-type': 'application/json' },
-  status: err.status || 500,
-})
+const respondError = (err) =>
+  new Response(JSON.stringify({ message: err.message }), {
+    headers: { 'content-type': 'application/json' },
+    status: err.status || 500,
+  })
 
 const parseJWT = async ({ url, headers }) => {
   const token = headers.get('portunus-jwt')
@@ -47,9 +50,6 @@ const parseJWT = async ({ url, headers }) => {
   return { team, p, stage }
 }
 
-// process.env is not avail in workers, direct access like KV namespaces
-// const { TOKEN_SECRET, MAIL_PASS } = process.env
-
 module.exports.root = ({ cf }) =>
   new Response(
     JSON.stringify({
@@ -60,7 +60,7 @@ module.exports.root = ({ cf }) =>
     {
       headers: { 'content-type': 'application/json' },
       status: 200,
-    },
+    }
   )
 
 const maskValue = (_v) => {
@@ -80,13 +80,16 @@ const maskURL = (_u) => {
   u.protocol = 'https'
   u.username = '**REDACTED_USER**'
   u.password = '**REDACTED_PASS**'
-  u.hostname = u.hostname.split('.').map((v, i, a) => {
-    const c = Math.floor(v.length / 2)
-    if (i < (a.length - 2)) {
-      return v.substring(0, c) + (c > 0 ? '__redacted' : '')
-    }
-    return v
-  }).join('.')
+  u.hostname = u.hostname
+    .split('.')
+    .map((v, i, a) => {
+      const c = Math.floor(v.length / 2)
+      if (i < a.length - 2) {
+        return v.substring(0, c) + (c > 0 ? '__redacted' : '')
+      }
+      return v
+    })
+    .join('.')
   u.pathname = '__redacted'
   u.protocol = p
   return u
@@ -98,7 +101,7 @@ const hideValues = ({ value, metadata: { secrets = [] } }) => {
     try {
       const url = maskURL(v)
       return url.href
-    } catch(_) {
+    } catch (_) {
       // fallthrough
     }
     if (isSec) {
@@ -107,17 +110,27 @@ const hideValues = ({ value, metadata: { secrets = [] } }) => {
   })
 }
 
-module.exports.getUIEnv = async({ url, headers }) => {
+module.exports.getUIEnv = async ({ url, headers }) => {
   // get envs without values (or partially hide) by default
   // retrieve metadata on top of values (compare to getEnv for CLI)
   try {
     const { team, p, stage } = await parseJWT({ url, headers })
-    const { value, metadata } = await KV.getWithMetadata(`${team}::${p}::${stage}`, 'json')
+    const { value, metadata } = await KV.getWithMetadata(
+      `${team}::${p}::${stage}`,
+      'json'
+    )
     return new Response(
-      JSON.stringify({ vars: hideValues(value), metadata, encrypted: false, team, project: p, stage }), // TODO: encryption mechanism
+      JSON.stringify({
+        vars: hideValues(value),
+        metadata,
+        encrypted: false,
+        team,
+        project: p,
+        stage,
+      }), // TODO: encryption mechanism
       { headers: { 'content-type': 'application/json' } }
     )
-  } catch(err) {
+  } catch (err) {
     return respondError(err)
   }
 }
@@ -180,7 +193,7 @@ module.exports.getEnv = async ({ url, headers }) => {
       JSON.stringify({ vars, encrypted: false, team, project: p, stage }), // TODO: encryption mechanism
       { headers: { 'content-type': 'application/json' } }
     )
-  } catch(err) {
+  } catch (err) {
     return respondError(err)
   }
 }

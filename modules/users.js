@@ -1,5 +1,5 @@
-module.exports.getUser = email =>
-  USERS.get(email, 'json').then(u => {
+module.exports.getUser = (email) =>
+  USERS.get(email, 'json').then((u) => {
     if (!u.active) {
       return {}
     }
