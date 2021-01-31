@@ -1,6 +1,11 @@
 const jwt = require('jsonwebtoken')
 
-const { extractParams, parseProj, hideValues } = require('./modules/utils')
+const {
+  corsHeaders,
+  extractParams,
+  parseProj,
+  hideValues,
+} = require('./modules/utils')
 const { getUser } = require('./modules/users')
 
 // process.env is not avail in workers, direct access like KV namespaces and secrets
@@ -81,7 +86,7 @@ module.exports.getUIEnv = async ({ url, headers }) => {
         project: p,
         stage,
       }), // TODO: encryption mechanism
-      { headers: { 'content-type': 'application/json' } }
+      { headers: { ...corsHeaders, 'content-type': 'application/json' } }
     )
   } catch (err) {
     return respondError(err)

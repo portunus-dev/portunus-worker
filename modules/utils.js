@@ -1,5 +1,12 @@
 const { PROJECTS } = require('./compat')
 
+module.exports.corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET,HEAD,POST,OPTIONS',
+  'Access-Control-Allow-Headers': 'portunus-jwt',
+  'Access-Control-Max-Age': '86400',
+}
+
 module.exports.extractParams = (searchParams) => (...params) =>
   params.reduce((acc, k) => {
     const v = searchParams.getAll(k)
@@ -80,7 +87,7 @@ const maskARN = (v) =>
     .join(':')
 
 module.exports.hideValues = ({ value, metadata }) =>
-  Object.entries(value)
+  Object.entries(value || {})
     .map(([k, v]) => {
       const isSec = isSecret(k) || ((metadata || {}).secrets || []).includes(k)
       try {
