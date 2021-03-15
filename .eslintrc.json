@@ -11,6 +11,7 @@
     "globals": {
         "MAIL_PASS": "readonly",
         "TOKEN_SECRET": "readonly",
+        "FAUNA_KEY": "readonly",
         "USERS": "readonly",
         "KV": "readonly"
     },

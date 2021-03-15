@@ -6,7 +6,7 @@ const {
   parseProj,
   hideValues,
 } = require('./modules/utils')
-const { getUser } = require('./modules/users')
+const { getFaunaUser } = require('./modules/users')
 
 // process.env is not avail in workers, direct access like KV namespaces and secrets
 
@@ -34,13 +34,12 @@ const parseJWT = async ({ url, headers }) => {
   } catch (_) {
     throw new HTTPError('Invalid portunus-jwt', 403)
   }
-  const user = await getUser(access.email)
+  const user = await getFaunaUser(access.email)
   if (user.jwt_uuid !== access.jwt_uuid) {
     throw new HTTPError('Invalid portunus-jwt', 403)
   }
   // fallback team, if not requested
-  const ft =
-    user.team || (user.email.endsWith('@eqworks.com') ? 'EQ Works' : null)
+  const ft = user.team || user.teams[0].ref.value.id || (user.email.endsWith('@eqworks.com') ? '290204995910894083' : null)
   const { searchParams } = new URL(url)
   const { team = ft, project, project_id, stage = 'dev' } = extractParams(
     searchParams
@@ -107,7 +106,7 @@ module.exports.getToken = async ({ url }) => {
   const { searchParams } = new URL(url)
   // TODO: need to mimic getEnv to support multiple-team user
   const { user } = extractParams(searchParams)('user')
-  const { email, jwt_uuid, team } = await getUser(user)
+  const { email, jwt_uuid, team } = await getFaunaUser(user)
   if (!jwt_uuid) {
     return new Response(JSON.stringify({ message: `${user} not found` }), {
       headers: { 'content-type': 'application/json' },
@@ -146,7 +145,7 @@ module.exports.getToken = async ({ url }) => {
 module.exports.getEnv = async ({ url, headers }) => {
   try {
     const { team, p, stage } = await parseJWT({ url, headers })
-    const vars = await KV.get(`${team}::${p}::${stage}`, 'json')
+    const vars = await KV.get(`${team}::${p}::${stage}`, 'json') || {}
     return new Response(
       JSON.stringify({ vars, encrypted: false, team, project: p, stage }), // TODO: encryption mechanism
       { headers: { 'content-type': 'application/json' } }
