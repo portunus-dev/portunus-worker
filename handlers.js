@@ -1,27 +1,16 @@
 const jwt = require('jsonwebtoken')
 
 const {
-  corsHeaders,
   extractParams,
   parseProj,
   hideValues,
+  HTTPError,
+  respondError,
+  respondJSON,
 } = require('./modules/utils')
 const { getFaunaUser } = require('./modules/users')
 
 // process.env is not avail in workers, direct access like KV namespaces and secrets
-
-class HTTPError extends Error {
-  constructor(message, status = 500) {
-    super(message)
-    this.status = status
-  }
-}
-
-const respondError = (err) =>
-  new Response(JSON.stringify({ message: err.message, stack: err.stack }), {
-    headers: { 'content-type': 'application/json' },
-    status: err.status || 500,
-  })
 
 const parseJWT = async ({ url, headers }) => {
   const token = headers.get('portunus-jwt')
@@ -36,36 +25,32 @@ const parseJWT = async ({ url, headers }) => {
   }
   const user = await getFaunaUser(access.email)
   if (user.jwt_uuid !== access.jwt_uuid) {
-    throw new HTTPError('Invalid portunus-jwt', 403)
+    throw new HTTPError('Invalid portunus-jwt: UUID mismatch', 403)
   }
   // fallback team, if not requested
-  const ft = user.team || user.teams[0].ref.value.id || (user.email.endsWith('@eqworks.com') ? '290204995910894083' : null)
+  const teams = user.teams.map(({ ref }) => ref.value.id)
+  const ft = user.team || teams[0] || (user.email.endsWith('@eqworks.com') ? '290204995910894083' : null)
   const { searchParams } = new URL(url)
   const { team = ft, project, project_id, stage = 'dev' } = extractParams(
     searchParams
   )('team', 'project', 'project_id', 'stage')
-  if (!team) {
-    throw new HTTPError('Missing team from portunus-jwt', 400)
+  if (!teams.includes(team)) {
+    throw new HTTPError('Invalid portnus-jwt: no team access', 403)
   }
   const p = parseProj(project) || parseProj(project_id)
   if (!p) {
-    throw new HTTPError('Invalid project from portunus-jwt', 400)
+    throw new HTTPError('Invalid portunus-jwt: no project access', 400)
   }
   return { team, p, stage }
 }
 
-module.exports.root = ({ cf }) =>
-  new Response(
-    JSON.stringify({
-      cli: 'pip install -U print-env --pre',
-      'Web UI': 'wip',
-      cf,
-    }),
-    {
-      headers: { 'content-type': 'application/json' },
-      status: 200,
-    }
-  )
+module.exports.root = ({ cf }) => respondJSON({
+  payload: {
+    cli: 'pip install -U print-env --pre',
+    'Web UI': 'wip',
+    cf,
+  },
+})
 
 module.exports.getUIEnv = async ({ url, headers }) => {
   // get envs without values (or partially hide) by default
@@ -76,17 +61,16 @@ module.exports.getUIEnv = async ({ url, headers }) => {
       `${team}::${p}::${stage}`,
       'json'
     )
-    return new Response(
-      JSON.stringify({
+    return respondJSON({
+      payload: {
         vars: hideValues({ value, metadata }),
         metadata,
         encrypted: false,
         team,
         project: p,
         stage,
-      }), // TODO: encryption mechanism
-      { headers: { ...corsHeaders, 'content-type': 'application/json' } }
-    )
+      },
+    })
   } catch (err) {
     return respondError(err)
   }
@@ -105,15 +89,20 @@ module.exports.getUIEnv = async ({ url, headers }) => {
 module.exports.getToken = async ({ url }) => {
   const { searchParams } = new URL(url)
   // TODO: need to mimic getEnv to support multiple-team user
-  const { user } = extractParams(searchParams)('user')
-  const { email, jwt_uuid, team } = await getFaunaUser(user)
+  const { user, team } = extractParams(searchParams)('user')
+  const { email, jwt_uuid, teams } = await getFaunaUser(user)
+  const _teams = teams.map(({ ref }) => ref.value.id)
+  const _team = team || _teams[0]
+
   if (!jwt_uuid) {
-    return new Response(JSON.stringify({ message: `${user} not found` }), {
-      headers: { 'content-type': 'application/json' },
-      status: 404,
-    })
+    return respondError(new HTTPError(`${user} not found`, 404))
   }
-  const token = jwt.sign({ email, jwt_uuid, team }, TOKEN_SECRET)
+
+  if (!_teams.includes(_team)) {
+    return respondError(new HTTPError('Invalid portnus-jwt: no team access', 403))
+  }
+
+  const token = jwt.sign({ email, jwt_uuid, team: _team }, TOKEN_SECRET)
 
   try {
     await fetch('https://api.sendgrid.com/v3/mail/send', {
@@ -130,26 +119,16 @@ module.exports.getToken = async ({ url }) => {
       }),
     })
   } catch (error) {
-    return new Response(
-      JSON.stringify({ message: `Unable to send token to ${user}` }),
-      {
-        headers: { 'content-type': 'application/json' },
-        status: 500,
-      }
-    )
+    return respondError(new HTTPError(`Unable to send token to ${user}`, 500))
   }
-  return new Response(JSON.stringify({ message: `Token sent to ${user}` }), {
-    headers: { 'content-type': 'application/json' },
-  })
+
+  return respondJSON({ payload: { message: `Token sent to ${user}` } })
 }
 module.exports.getEnv = async ({ url, headers }) => {
   try {
     const { team, p, stage } = await parseJWT({ url, headers })
     const vars = await KV.get(`${team}::${p}::${stage}`, 'json') || {}
-    return new Response(
-      JSON.stringify({ vars, encrypted: false, team, project: p, stage }), // TODO: encryption mechanism
-      { headers: { 'content-type': 'application/json' } }
-    )
+    return respondJSON({ vars, encrypted: false, team, project: p, stage })
   } catch (err) {
     return respondError(err)
   }
