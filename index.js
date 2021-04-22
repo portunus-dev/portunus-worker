@@ -1,5 +1,5 @@
 const Router = require('./router')
-const { root, getToken, getEnv, getUIEnv } = require('./handlers')
+const { root, getToken, getEnv } = require('./handlers')
 const { corsHeaders } = require('./modules/utils')
 
 addEventListener('fetch', (event) => {
@@ -15,7 +15,6 @@ async function handleRequest(request) {
 
   r.get('/token', getToken)
   r.get('/env', getEnv)
-  r.get('/ui/env', getUIEnv)
   r.get('/', root)
 
   const resp = await r.route(request)

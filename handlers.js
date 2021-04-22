@@ -3,7 +3,6 @@ const jwt = require('jsonwebtoken')
 const {
   extractParams,
   parseProj,
-  hideValues,
   HTTPError,
   respondError,
   respondJSON,
@@ -51,30 +50,6 @@ module.exports.root = ({ cf }) => respondJSON({
     cf,
   },
 })
-
-module.exports.getUIEnv = async ({ url, headers }) => {
-  // get envs without values (or partially hide) by default
-  // retrieve metadata on top of values (compare to getEnv for CLI)
-  try {
-    const { team, p, stage } = await parseJWT({ url, headers })
-    const { value, metadata } = await KV.getWithMetadata(
-      `${team}::${p}::${stage}`,
-      'json'
-    )
-    return respondJSON({
-      payload: {
-        vars: hideValues({ value, metadata }),
-        metadata,
-        encrypted: false,
-        team,
-        project: p,
-        stage,
-      },
-    })
-  } catch (err) {
-    return respondError(err)
-  }
-}
 
 // module.exports.listUIEnvs = async({ url, headers }) => {
 //   // list envs by user and team
