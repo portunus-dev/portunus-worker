@@ -51,13 +51,8 @@ module.exports.root = ({ cf }) => respondJSON({
   },
 })
 
-// module.exports.listUIEnvs = async({ url, headers }) => {
-//   // list envs by user and team
-// }
-
-// module.exports.listUIUsers = async({ url, headers }) => {
-//   // list users of the same org
-//   // need to add
+// module.exports.listUsers = async({ url, headers }) => {
+//   // list users by team
 // }
 
 // CLI handlers
@@ -99,11 +94,12 @@ module.exports.getToken = async ({ url }) => {
 
   return respondJSON({ payload: { message: `Token sent to ${user}` } })
 }
+
 module.exports.getEnv = async ({ url, headers }) => {
   try {
     const { team, p, stage } = await parseJWT({ url, headers })
     const vars = await KV.get(`${team}::${p}::${stage}`, 'json') || {}
-    return respondJSON({ vars, encrypted: false, team, project: p, stage })
+    return respondJSON({ payload: { vars, encrypted: false, team, project: p, stage } })
   } catch (err) {
     return respondError(err)
   }
