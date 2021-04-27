@@ -7,11 +7,19 @@ const {
   respondError,
   respondJSON,
 } = require('./modules/utils')
-const { getFaunaUser } = require('./modules/users')
+const { getUserByEmail } = require('./modules/users')
 
 // process.env is not avail in workers, direct access like KV namespaces and secrets
 
-const parseJWT = async ({ url, headers }) => {
+module.exports.root = ({ cf }) => respondJSON({
+  payload: {
+    cli: 'pip install -U print-env --pre',
+    'Web UI': 'wip',
+    cf,
+  },
+})
+
+const verifyJWT = (headers) => {
   const token = headers.get('portunus-jwt')
   if (!token) {
     throw new HTTPError('Auth requires portunus-jwt', 403)
@@ -22,57 +30,65 @@ const parseJWT = async ({ url, headers }) => {
   } catch (_) {
     throw new HTTPError('Invalid portunus-jwt', 403)
   }
-  const user = await getFaunaUser(access.email)
+  if (!access.email) {
+    throw new HTTPError('Invalid portunus-jwt', 403)
+  }
+  return access
+}
+
+const verifyUser = async (access) => {
+  const user = await getUserByEmail(access.email)
+  if (!user.active) {
+    throw new HTTPError('Invalid portunus-jwt: inactive user', 403)
+  }
   if (user.jwt_uuid !== access.jwt_uuid) {
     throw new HTTPError('Invalid portunus-jwt: UUID mismatch', 403)
   }
-  // fallback team, if not requested
-  const teams = user.teams.map(({ ref }) => ref.value.id)
-  const ft = user.team || teams[0] || (user.email.endsWith('@eqworks.com') ? '290204995910894083' : null)
+  if (access.team && access.team !== user.team._id) {
+    throw new HTTPError('Invalid portunus-jwt: team mismatch', 403)
+  }
+  return user
+}
+
+const parseJWT = async ({ url, headers }) => {
+  const access = verifyJWT(headers)
+  const user = await verifyUser(access)
   const { searchParams } = new URL(url)
-  const { team = ft, project, project_id, stage = 'dev' } = extractParams(
+  const { team = user.team._id, project, project_id, stage = 'dev' } = extractParams(
     searchParams
   )('team', 'project', 'project_id', 'stage')
-  if (!teams.includes(team)) {
+  if (team && team !== user.team._id) {
     throw new HTTPError('Invalid portnus-jwt: no team access', 403)
   }
   const p = parseProj(project) || parseProj(project_id)
   if (!p) {
     throw new HTTPError('Invalid portunus-jwt: no project access', 400)
   }
-  return { team, p, stage }
+  return { user, team, p, stage }
 }
 
-module.exports.root = ({ cf }) => respondJSON({
-  payload: {
-    cli: 'pip install -U print-env --pre',
-    'Web UI': 'wip',
-    cf,
-  },
-})
-
-// module.exports.listUsers = async({ url, headers }) => {
-//   // list users by team
-// }
+module.exports.getUser = async ({ headers }) => {
+  try {
+    const access = verifyJWT(headers)
+    const payload = await verifyUser(access)
+    return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
 
 // CLI handlers
 module.exports.getToken = async ({ url }) => {
   const { searchParams } = new URL(url)
   // TODO: need to mimic getEnv to support multiple-team user
   const { user, team } = extractParams(searchParams)('user')
-  const { email, jwt_uuid, teams } = await getFaunaUser(user)
-  const _teams = teams.map(({ ref }) => ref.value.id)
-  const _team = team || _teams[0]
+  const { email, jwt_uuid, team: { _id: teamID } } = await getUserByEmail(user)
 
   if (!jwt_uuid) {
     return respondError(new HTTPError(`${user} not found`, 404))
   }
 
-  if (!_teams.includes(_team)) {
-    return respondError(new HTTPError('Invalid portnus-jwt: no team access', 403))
-  }
-
-  const token = jwt.sign({ email, jwt_uuid, team: _team }, TOKEN_SECRET)
+  const token = jwt.sign({ email, jwt_uuid, team: team || teamID }, TOKEN_SECRET)
 
   try {
     await fetch('https://api.sendgrid.com/v3/mail/send', {
@@ -95,6 +111,7 @@ module.exports.getToken = async ({ url }) => {
   return respondJSON({ payload: { message: `Token sent to ${user}` } })
 }
 
+// also shared for UI
 module.exports.getEnv = async ({ url, headers }) => {
   try {
     const { team, p, stage } = await parseJWT({ url, headers })

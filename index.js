@@ -1,5 +1,5 @@
 const Router = require('./router')
-const { root, getToken, getEnv } = require('./handlers')
+const { root, getUser, getToken, getEnv } = require('./handlers')
 const { corsHeaders } = require('./modules/utils')
 
 addEventListener('fetch', (event) => {
@@ -13,6 +13,9 @@ async function handleRequest(request) {
     return new Response(null, { headers: { ...corsHeaders } })
   }
 
+  // UI
+  r.get('/user', getUser)
+  // CLI
   r.get('/token', getToken)
   r.get('/env', getEnv)
   r.get('/', root)
