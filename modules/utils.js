@@ -13,7 +13,7 @@ module.exports.extractParams = (searchParams) => (...params) =>
 module.exports.parseProj = (proj) =>
   !isNaN(proj) && !isNaN(parseFloat(proj)) ? PROJECTS[proj] : proj
 
-const corsHeaders = {
+module.exports.corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,HEAD,POST,OPTIONS',
   'Access-Control-Allow-Headers': 'portunus-jwt',
@@ -29,12 +29,12 @@ module.exports.HTTPError = class extends Error {
 
 module.exports.respondError = (err) =>
   new Response(JSON.stringify({ message: err.message, stack: err.stack }), {
-    headers: { ...corsHeaders, 'content-type': 'application/json' },
+    headers: { ...this.corsHeaders, 'content-type': 'application/json' },
     status: err.status || 500,
   })
 
 module.exports.respondJSON = ({ payload, status = 200, headers = {} }) =>
   new Response(JSON.stringify(payload), {
-    headers: { ...corsHeaders, ...headers, 'content-type': 'application/json' },
+    headers: { ...this.corsHeaders, ...headers, 'content-type': 'application/json' },
     status,
   })
