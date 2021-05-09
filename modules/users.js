@@ -1,3 +1,5 @@
+const q = require('./graphql')
+
 // legacy KV based USERS
 module.exports.getUser = (email) =>
   USERS.get(email, 'json').then((u) => {
@@ -10,7 +12,7 @@ module.exports.getUser = (email) =>
 module.exports.getUserByEmail = (email) => {
   const index = 'findUserByEmail' // GraphQL connected FaunaDB index
   const query = `
-    query ($email: String!) {
+    query($email: String!) {
       ${index}(email: $email) {
         _id
         _ts
@@ -27,12 +29,5 @@ module.exports.getUserByEmail = (email) => {
     }
   `
   const variables = { email }
-  return fetch('https://graphql.fauna.com/graphql', {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${FAUNA_KEY}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({ query, variables }),
-  }).then(r => r.json()).then(({ data }) => (data || {})[index] || {})
+  return q({ index, query, variables })
 }

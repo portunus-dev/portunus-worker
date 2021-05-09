@@ -35,6 +35,10 @@ module.exports.respondError = (err) =>
 
 module.exports.respondJSON = ({ payload, status = 200, headers = {} }) =>
   new Response(JSON.stringify(payload), {
-    headers: { ...this.corsHeaders, ...headers, 'content-type': 'application/json' },
+    headers: {
+      ...this.corsHeaders,
+      ...headers,
+      'content-type': 'application/json',
+    },
     status,
   })
