@@ -1,33 +1,9 @@
-const q = require('./graphql')
+const deta = require('./db')
 
-// legacy KV based USERS
-module.exports.getUser = (email) =>
-  USERS.get(email, 'json').then((u) => {
-    if (!u.active) {
-      return {}
-    }
-    return u
-  })
+// deta Base - users
+// TODO: put/update
+module.exports.get = (email) =>
+  deta.Base('users').fetch({ email }, { limit: 1 })
 
-module.exports.getUserByEmail = (email) => {
-  const index = 'findUserByEmail' // GraphQL connected FaunaDB index
-  const query = `
-    query($email: String!) {
-      ${index}(email: $email) {
-        _id
-        _ts
-        email
-        name
-        jwt_uuid
-        team {
-          _id
-          name
-        }
-        admin
-        active
-      }
-    }
-  `
-  const variables = { email }
-  return q({ index, query, variables })
-}
+// Cloudflare Workers KV - USERS
+module.exports.getKVUser = (email) => USERS.get(email, { type: 'json' })

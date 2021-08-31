@@ -6,9 +6,9 @@ const {
   respondError,
   respondJSON,
 } = require('./modules/utils')
-const { getUserByEmail } = require('./modules/users')
+const { getKVUser } = require('./modules/users')
 const { verifyJWT, verifyUser, parseJWT } = require('./modules/auth')
-const { getProjectsByTeam } = require('./modules/teams')
+const deta = require('./modules/db')
 
 // process.env is not avail in workers, direct access like KV namespaces and secrets
 
@@ -31,18 +31,46 @@ module.exports.getUser = async ({ headers }) => {
     return respondError(err)
   }
 }
-module.exports.listProjects = async ({ url, headers }) => {
+module.exports.listUsers = async ({ url, headers }) => {
   try {
     const access = verifyJWT(headers)
-    // see TODO of getProjectsByTeam() to save this step
     const user = await verifyUser(access)
     // verify user team access
     const { searchParams } = new URL(url)
-    const { team = user.team._id } = extractParams(searchParams)('team')
-    if (team && team !== user.team._id) {
+    const {
+      team = user.teams[0],
+      limit,
+      last,
+    } = extractParams(searchParams)('team', 'limit', 'last')
+    if (team && !user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
-    const payload = await getProjectsByTeam(team)
+    const payload = await deta
+      .Base('users')
+      .fetch([{ 'teams?contains': team }, { 'admins?contains': team }], {
+        limit,
+        last,
+      })
+    return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+module.exports.listProjects = async ({ url, headers }) => {
+  try {
+    const access = verifyJWT(headers)
+    const user = await verifyUser(access)
+    // verify user team access
+    const { searchParams } = new URL(url)
+    const {
+      team = user.teams[0],
+      limit,
+      last,
+    } = extractParams(searchParams)('team')
+    if (team && !user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+    const payload = await deta.Base('projects').fetch({ team }, { limit, last })
     return respondJSON({ payload })
   } catch (err) {
     return respondError(err)
@@ -57,15 +85,15 @@ module.exports.getToken = async ({ url }) => {
   const {
     email,
     jwt_uuid,
-    team: { _id: teamID },
-  } = await getUserByEmail(user)
+    teams: [defaultTeam],
+  } = await getKVUser(user)
 
   if (!jwt_uuid) {
     return respondError(new HTTPError(`${user} not found`, 404))
   }
 
   const token = jwt.sign(
-    { email, jwt_uuid, team: team || teamID },
+    { email, jwt_uuid, team: team || defaultTeam },
     TOKEN_SECRET
   )
 
@@ -93,7 +121,7 @@ module.exports.getToken = async ({ url }) => {
 module.exports.getEnv = async ({ url, headers }) => {
   try {
     const { team, p, stage } = await parseJWT({ url, headers })
-    const vars = (await KV.get(`${team}::${p}::${stage}`, 'json')) || {}
+    const vars = (await KV.get(`${team}::${p}::${stage}`, { type: 'json' })) || {}
     return respondJSON({
       payload: { vars, encrypted: false, team, project: p, stage },
     })
