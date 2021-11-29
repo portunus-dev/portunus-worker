@@ -4,6 +4,7 @@ account_id = "ae0efcc5352882cf6f1ac3a3a40645ba"
 workers_dev = true
 route = ""
 zone_id = ""
+compatibility_date = "2021-11-29"
 kv_namespaces = [
     # USERS_DEV (id and preview_id)
     { binding = "USERS", id = "36df6ebcc3d6453e81094dd5730e30ee", preview_id = "36df6ebcc3d6453e81094dd5730e30ee" },
