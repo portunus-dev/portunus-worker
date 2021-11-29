@@ -15,5 +15,5 @@ module.exports.update = (user) => {
   ])
 }
 
-// Cloudflare Workers KV - USERS, for CLI use
+// Cloudflare KV - USERS, for CLI use
 module.exports.getKVUser = (email) => USERS.get(email, { type: 'json' })

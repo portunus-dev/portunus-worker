@@ -7,6 +7,7 @@ const {
   respondJSON,
 } = require('./modules/utils')
 const { getKVUser } = require('./modules/users')
+const { getKVEnvs } = require('./modules/envs')
 const { verifyJWT, verifyUser, parseJWT } = require('./modules/auth')
 const deta = require('./modules/db')
 
@@ -86,7 +87,7 @@ module.exports.getToken = async ({ url }) => {
     email,
     jwt_uuid,
     teams: [defaultTeam],
-  } = await getKVUser(user)
+  } = await getKVUser(user) || {}
 
   if (!jwt_uuid) {
     return respondError(new HTTPError(`${user} not found`, 404))
@@ -120,10 +121,15 @@ module.exports.getToken = async ({ url }) => {
 // also shared for UI
 module.exports.getEnv = async ({ url, headers }) => {
   try {
-    const { team, p, stage } = await parseJWT({ url, headers })
-    const vars = (await KV.get(`${team}::${p}::${stage}`, { type: 'json' })) || {}
+    const parsed = await parseJWT({ url, headers })
+    const vars = await getKVEnvs(parsed) || {}
     return respondJSON({
-      payload: { vars, encrypted: false, team, project: p, stage },
+      payload: {
+        vars,
+        encrypted: false,
+        ...parsed,
+        project: parsed.p, // TODO: perhaps stick with `p` for frontend read use-cases
+      },
     })
   } catch (err) {
     return respondError(err)
