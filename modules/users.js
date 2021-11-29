@@ -11,7 +11,7 @@ module.exports.update = (user) => {
   return Promise.all([
     // TODO: do this "transactionally"
     deta.Base('users').put(user), // deta.Base put(data)
-    USERS.put(user.email, user), // KV put(key, value)
+    USERS.put(user.email, JSON.stringify(user)), // KV put(key, value)
   ])
 }
 
