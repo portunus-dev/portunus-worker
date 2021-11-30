@@ -6,11 +6,13 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "format": "prettier --write '**/*.{js,css,jsone,md}'",
-    "lint": "eslint *.js modules/*.js"
+    "lint": "eslint *.js modules/*.js",
+    "dev": "env $(print-env) npx wrangler dev"
   },
   "author": "Runzhou Li (woozyking) <runzhou.li@gmail.com>",
   "license": "ISC",
   "devDependencies": {
+    "@cloudflare/wrangler": "^1.19.5",
     "eslint": "^7.18.0",
     "prettier": "^2.2.1"
   },
