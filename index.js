@@ -28,12 +28,6 @@ router.get('/token', getToken)
 router.get('/env', getEnv)
 router.get('/', root)
 
-router.post('/todos', async (request) => {
-  const content = await request.json()
-
-  return new Response('Creating Todo: ' + JSON.stringify(content))
-})
-
 // 404
 router.all(
   '*',
