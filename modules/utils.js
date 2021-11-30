@@ -44,3 +44,8 @@ module.exports.respondJSON = ({ payload, status = 200, headers = {} }) =>
     },
     status,
   })
+
+module.exports.getKVStageKey = ({ team, project, stage }) =>
+  `${team}::${project}::${stage}`
+
+module.exports.getProjectKey = ({ team, project }) => `${team}::${project}`
