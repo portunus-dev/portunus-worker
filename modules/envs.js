@@ -18,15 +18,44 @@ module.exports.createTeam = async ({ name, user }) => {
   const { key: team } = await deta.Base('teams').put({ name })
   // update user in both deta Base and Cloudflare KV
   const users = deta.Base('users')
+
   // TODO: make this "transactional"
-  return Promise.all([
-    users.update({ teams: users.util.append(team) }, user.key),
-    USERS.put(
-      user.email,
-      JSON.stringify({ ...user, teams: [...user.teams, team] })
-    ),
-  ])
+  const oldKVUser = user
+
+  await USERS.put(
+    user.email,
+    JSON.stringify({ ...user, teams: [...user.teams, team] })
+  )
+
+  try {
+    await users.update({ teams: users.util.append(team) }, user.key)
+  } catch (e) {
+    console.error(
+      `CREATE TEAM - Failed Deta USER (${oldKVUser.email}) update after KV update`,
+      e
+    )
+    try {
+      // try to revert USERS change
+      await USERS.put(oldKVUser.email, oldKVUser)
+    } catch (e) {
+      console.error(
+        'CREATE TEAM - Failed to rollback KV USER update, retrying.',
+        e
+      )
+      try {
+        // one retry attempt
+        await USERS.put(oldKVUser.email, oldKVUser)
+      } catch (e) {
+        console.error('CREATE TEAM - Failed to rollback KV USER update.', e)
+      }
+    }
+
+    return false
+  }
+
+  return true
 }
+
 module.exports.updateTeam = deta.Base('teams').put // stub for now
 
 module.exports.createProject = ({ team, project }) =>
@@ -54,7 +83,13 @@ module.exports.createStage = ({ team, project, stage, vars }) => {
     KV.put(key, JSON.stringify(vars), { metadata: { updated } }),
   ])
 }
-module.exports.updateStage = async ({ team, project, stage, updates }) => {
+
+const transactionalUpdate = (module.exports.updateStage = async ({
+  team,
+  project,
+  stage,
+  updates,
+}) => {
   const updated = new Date()
   const key = getKVStageKey({ team, project, stage })
   // updates = vars update actions
@@ -87,7 +122,7 @@ module.exports.updateStage = async ({ team, project, stage, updates }) => {
   }
   actions.push(KV.put(key, JSON.stringify(kvVars), { metadata: { updated } }))
   return Promise.all(actions)
-}
+})
 
 // Cloudflare KV - KV, for CLI use
 module.exports.getKVEnvs = ({ team, p, stage }) =>
