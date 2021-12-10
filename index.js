@@ -1,27 +1,46 @@
-const Router = require('./router')
-const { root, getUser, listProjects, listUsers, getToken, getEnv } = require('./handlers')
+import { Router } from 'itty-router'
+const {
+  root,
+  getUser,
+  listProjects,
+  listUsers,
+  getToken,
+  getEnv,
+} = require('./handlers')
 const { corsHeaders } = require('./modules/utils')
 
-addEventListener('fetch', (event) => {
-  event.respondWith(handleRequest(event.request))
-})
+const router = Router()
 
-async function handleRequest(request) {
-  const r = new Router()
-
+const withCors = (request) => {
   if (request.method === 'OPTIONS') {
     return new Response(null, { headers: { ...corsHeaders } })
   }
-
-  // UI
-  r.get('/user', getUser)
-  r.get('/projects', listProjects)
-  r.get('/users', listUsers)
-  // CLI
-  r.get('/token', getToken)
-  r.get('/env', getEnv)
-  r.get('/', root)
-
-  const resp = await r.route(request)
-  return resp
 }
+
+router.get('*', withCors)
+
+// UI
+router.get('/user', getUser)
+router.get('/projects', listProjects)
+router.get('/users', listUsers)
+// CLI
+router.get('/token', getToken)
+router.get('/env', getEnv)
+router.get('/', root)
+
+// 404
+router.all(
+  '*',
+  () =>
+    new Response('resource not found', {
+      status: 404,
+      statusText: 'not found',
+      headers: {
+        'content-type': 'text/plain',
+      },
+    })
+)
+
+addEventListener('fetch', (event) =>
+  event.respondWith(router.handle(event.request))
+)

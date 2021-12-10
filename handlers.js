@@ -87,7 +87,7 @@ module.exports.getToken = async ({ url }) => {
     email,
     jwt_uuid,
     teams: [defaultTeam],
-  } = await getKVUser(user) || {}
+  } = (await getKVUser(user)) || {}
 
   if (!jwt_uuid) {
     return respondError(new HTTPError(`${user} not found`, 404))
@@ -122,7 +122,7 @@ module.exports.getToken = async ({ url }) => {
 module.exports.getEnv = async ({ url, headers }) => {
   try {
     const parsed = await parseJWT({ url, headers })
-    const vars = await getKVEnvs(parsed) || {}
+    const vars = (await getKVEnvs(parsed)) || {}
     return respondJSON({
       payload: {
         vars,
