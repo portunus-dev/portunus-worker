@@ -78,6 +78,77 @@ module.exports.listProjects = async ({ url, headers }) => {
   }
 }
 
+module.exports.listAll = async ({ url, headers }) => {
+  try {
+    const access = verifyJWT(headers)
+    const user = await verifyUser(access)
+    const teams = user.teams.map((key) => ({ key, name: key }))
+    console.log('========> teams', teams[0])
+
+    const teamProjects = await Promise.all(
+      teams.map(
+        (team) =>
+          new Promise(async (resolve) => {
+            console.log('k', team)
+            let payload
+            try {
+              payload = await deta
+                .Base('projects')
+                .fetch({ team: team.key }, {})
+            } catch (e) {
+              console.log('===================== SHANE =============')
+              console.log(e)
+              console.log(e.message)
+            }
+
+            console.log('the paylaod', payload.items)
+            resolve(payload.items)
+          })
+      )
+    )
+
+    const projects = teamProjects.flat()
+    console.log('========> projects', projects[0])
+
+    const projectStages = await Promise.all(
+      projects.map(
+        (project) =>
+          new Promise(async (resolve) => {
+            const payload = await deta
+              .Base('stages')
+              .fetch({ project: project.key }, {})
+            resolve(payload.items)
+          })
+      )
+    )
+
+    const stages = projectStages.flat()
+
+    console.log('========> stages', stages[0])
+
+    const vars = await Promise.all(
+      stages.map(
+        (stage) =>
+          new Promise(async (resolve) => {
+            const payload =
+              (await getKVEnvs({
+                team: stage.team,
+                p: stage.project,
+                stage: stage.stage,
+              })) || {}
+            resolve(payload)
+          })
+      )
+    )
+    console.log('====> VARS', vars)
+    const payload = { teams, projects, stages }
+
+    return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
 // CLI handlers
 module.exports.getToken = async ({ url }) => {
   const { searchParams } = new URL(url)

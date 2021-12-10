@@ -4,6 +4,7 @@ const {
   getUser,
   listProjects,
   listUsers,
+  listAll,
   getToken,
   getEnv,
 } = require('./handlers')
@@ -12,17 +13,17 @@ const { corsHeaders } = require('./modules/utils')
 const router = Router()
 
 const withCors = (request) => {
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { headers: { ...corsHeaders } })
-  }
+  // TODO: could check in greater detail
+  return new Response(null, { headers: { ...corsHeaders } })
 }
-
-router.get('*', withCors)
+router.options('*', withCors)
 
 // UI
 router.get('/user', getUser)
 router.get('/projects', listProjects)
 router.get('/users', listUsers)
+router.get('/all', listAll)
+
 // CLI
 router.get('/token', getToken)
 router.get('/env', getEnv)
