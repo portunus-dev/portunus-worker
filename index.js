@@ -1,8 +1,15 @@
-const { Router } = require('itty-router')
+import { Router } from 'itty-router'
+import { withContent } from 'itty-router-extras'
+
 const {
   root,
   getUser,
+  listTeams,
+  createTeam,
   listProjects,
+  createProject,
+  listStages,
+  createStage,
   listUsers,
   listAll,
   getToken,
@@ -21,9 +28,9 @@ router.options('*', withCors)
 // UI
 router.get('/all', listAll)
 
-// router.get('/teams', listTeams)
+router.get('/teams', listTeams)
 // router.get('/team', getTeam)
-// router.put('/team', createTeam)
+router.post('/team', withContent, createTeam)
 // router.put('/team/update', updateTeam)
 // router.delete('/team/delete', deleteTeam)
 
@@ -36,13 +43,13 @@ router.get('/users', listUsers)
 
 router.get('/projects', listProjects)
 // router.get('/project', getProject)
-// router.put('/project', createProject)
+router.put('/project', withContent, createProject)
 // router.put('/project/update', updateProject)
 // router.delete('/project/delete', deleteProject)
 
-// router.get('/stages', listStages)
+router.get('/stages', listStages)
 // router.get('/stage', getStage)
-// router.put('/stage', createStage)
+router.put('/stage', withContent, createStage)
 // router.put('/stage/update', updateStage)
 // router.delete('/stage/delete', deleteStage)
 
