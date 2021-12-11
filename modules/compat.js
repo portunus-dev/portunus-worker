@@ -19,3 +19,12 @@ module.exports.PROJECTS = {
   20: 'enrichdata',
   21: 'ml-fusion',
 }
+// deta teams mapping
+module.exports.TEAM_MAP = {
+  'EQ Works': '00zpmhw2dpag',
+  bertour: 'ohxude0nwpv6',
+}
+module.exports.REV_MAP = {
+  '00zpmhw2dpag': 'EQ Works',
+  ohxude0nwpv6: 'bertour',
+}

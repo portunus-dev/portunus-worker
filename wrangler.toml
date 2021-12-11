@@ -4,12 +4,19 @@ account_id = "ae0efcc5352882cf6f1ac3a3a40645ba"
 workers_dev = true
 route = ""
 zone_id = ""
+compatibility_date = "2021-11-29"
 kv_namespaces = [
-    # USERS_DEV
-    { binding = "USERS", id = "36df6ebcc3d6453e81094dd5730e30ee" },
-    # KV_DEV
-    { binding = "KV", id = "99aca84159ad4e7eb3f3048611680dd8" }
+    # USERS_DEV (id and preview_id)
+    { binding = "USERS", id = "36df6ebcc3d6453e81094dd5730e30ee", preview_id = "36df6ebcc3d6453e81094dd5730e30ee" },
+    # KV_DEV (id), KV_PREVIEW (preview_id: 09f9d1a399dc4032a5d7f561e577872a)
+    { binding = "KV", id = "99aca84159ad4e7eb3f3048611680dd8", preview_id = "99aca84159ad4e7eb3f3048611680dd8" }
 ]
+
+# [secrets]
+# TOKEN_SECRET
+# MAIL_PASS
+# DETA_KEY
+# DETA_ID
 
 [env.production]
 zone_id = "5c9fc9248d20a5ed0b6b1f1a155ded67"

@@ -1,36 +1,102 @@
 const jwt = require('jsonwebtoken')
 
-const { extractParams, parseProj } = require('./modules/utils')
-const { getUser } = require('./modules/users')
+const {
+  extractParams,
+  HTTPError,
+  respondError,
+  respondJSON,
+} = require('./modules/utils')
+const { getKVUser } = require('./modules/users')
+const { getKVEnvs } = require('./modules/envs')
+const { verifyJWT, verifyUser, parseJWT } = require('./modules/auth')
+const deta = require('./modules/db')
 
-// process.env is not avail in workers, direct access like KV namespaces
-// const { TOKEN_SECRET, MAIL_PASS } = process.env
+// process.env is not avail in workers, direct access like KV namespaces and secrets
 
 module.exports.root = ({ cf }) =>
-  new Response(
-    JSON.stringify({
+  respondJSON({
+    payload: {
       cli: 'pip install -U print-env --pre',
       'Web UI': 'wip',
       cf,
-    }),
-    {
-      headers: { 'content-type': 'application/json' },
-      status: 200,
     },
-  )
+  })
+
+// UI handlers
+module.exports.getUser = async ({ headers }) => {
+  try {
+    const access = verifyJWT(headers)
+    const payload = await verifyUser(access)
+    return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+module.exports.listUsers = async ({ url, headers }) => {
+  try {
+    const access = verifyJWT(headers)
+    const user = await verifyUser(access)
+    // verify user team access
+    const { searchParams } = new URL(url)
+    const {
+      team = user.teams[0],
+      limit,
+      last,
+    } = extractParams(searchParams)('team', 'limit', 'last')
+    if (team && !user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+    const payload = await deta
+      .Base('users')
+      .fetch([{ 'teams?contains': team }, { 'admins?contains': team }], {
+        limit,
+        last,
+      })
+    return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+module.exports.listProjects = async ({ url, headers }) => {
+  try {
+    const access = verifyJWT(headers)
+    const user = await verifyUser(access)
+    // verify user team access
+    const { searchParams } = new URL(url)
+    const {
+      team = user.teams[0],
+      limit,
+      last,
+    } = extractParams(searchParams)('team')
+    if (team && !user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+    const payload = await deta.Base('projects').fetch({ team }, { limit, last })
+    return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
 
 // CLI handlers
 module.exports.getToken = async ({ url }) => {
   const { searchParams } = new URL(url)
-  const { user } = extractParams(searchParams)('user')
-  const { email, jwt_uuid, team } = await getUser(user)
+  // TODO: need to mimic getEnv to support multiple-team user
+  const { user, team } = extractParams(searchParams)('user')
+  const {
+    email,
+    jwt_uuid,
+    teams: [defaultTeam],
+  } = await getKVUser(user) || {}
+
   if (!jwt_uuid) {
-    return new Response(JSON.stringify({ message: `${user} not found` }), {
-      headers: { 'content-type': 'application/json' },
-      status: 404,
-    })
+    return respondError(new HTTPError(`${user} not found`, 404))
   }
-  const token = jwt.sign({ email, jwt_uuid, team }, TOKEN_SECRET)
+
+  const token = jwt.sign(
+    { email, jwt_uuid, team: team || defaultTeam },
+    TOKEN_SECRET
+  )
 
   try {
     await fetch('https://api.sendgrid.com/v3/mail/send', {
@@ -47,72 +113,25 @@ module.exports.getToken = async ({ url }) => {
       }),
     })
   } catch (error) {
-    return new Response(
-      JSON.stringify({ message: `Unable to send token to ${user}` }),
-      {
-        headers: { 'content-type': 'application/json' },
-        status: 500,
-      }
-    )
-  }
-  return new Response(JSON.stringify({ message: `Token sent to ${user}` }), {
-    headers: { 'content-type': 'application/json' },
-  })
-}
-module.exports.getEnv = async ({ url, headers }) => {
-  const token = headers.get('portunus-jwt')
-  if (!token) {
-    return new Response(
-      JSON.stringify({ message: 'Auth requires portunus-jwt' }),
-      {
-        headers: { 'content-type': 'application/json' },
-        status: 403,
-      }
-    )
+    return respondError(new HTTPError(`Unable to send token to ${user}`, 500))
   }
 
-  let access = {}
+  return respondJSON({ payload: { message: `Token sent to ${user}` } })
+}
+// also shared for UI
+module.exports.getEnv = async ({ url, headers }) => {
   try {
-    access = jwt.verify(token, TOKEN_SECRET)
-  } catch (error) {
-    return new Response(JSON.stringify({ message: 'Invalid portunus-jwt' }), {
-      headers: { 'content-type': 'application/json' },
-      status: 403,
+    const parsed = await parseJWT({ url, headers })
+    const vars = await getKVEnvs(parsed) || {}
+    return respondJSON({
+      payload: {
+        vars,
+        encrypted: false,
+        ...parsed,
+        project: parsed.p, // TODO: perhaps stick with `p` for frontend read use-cases
+      },
     })
+  } catch (err) {
+    return respondError(err)
   }
-  const user = await getUser(access.email)
-  if (user.jwt_uuid !== access.jwt_uuid) {
-    return new Response(JSON.stringify({ message: 'Invalid portunus-jwt' }), {
-      headers: { 'content-type': 'application/json' },
-      status: 403,
-    })
-  }
-  // fallback team, if not requested
-  const ft =
-    user.team || (user.email.endsWith('@eqworks.com') ? 'EQ Works' : null)
-  const { searchParams } = new URL(url)
-  const { team = ft, project, project_id, stage = 'dev' } = extractParams(
-    searchParams
-  )('team', 'project', 'project_id', 'stage')
-  if (!team) {
-    return new Response(JSON.stringify({ message: 'Missing team' }), {
-      headers: { 'content-type': 'application/json' },
-      status: 400,
-    })
-  }
-  const p = parseProj(project) || parseProj(project_id)
-  if (!p) {
-    return new Response(
-      JSON.stringify({ message: 'Missing or invalid project' }),
-      {
-        headers: { 'content-type': 'application/json' },
-        status: 400,
-      }
-    )
-  }
-  const vars = await KV.get(`${team}::${p}::${stage}`, 'json')
-  return new Response(
-    JSON.stringify({ vars, encrypted: false, team, project: p, stage }), // TODO: encryption mechanism
-    { headers: { 'content-type': 'application/json' } }
-  )
 }
