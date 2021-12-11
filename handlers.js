@@ -184,7 +184,7 @@ module.exports.listStages = async ({ query, user }) => {
     }
     const payload = await deta
       .Base('stages')
-      .fetch({ project: `${team}::${project}` }, { limit, last })
+      .fetch({ team, project }, { limit, last })
     return respondJSON({ payload })
   } catch (err) {
     return respondError(err)

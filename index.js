@@ -1,12 +1,11 @@
-const { Router } = require('itty-router')
-const { withContent } = require('itty-router-extras')
+import { Router } from 'itty-router'
+import { withContent } from 'itty-router-extras'
 
 const {
   root,
+  getUser,
   listTeams,
   createTeam,
-  updateTeamName,
-  deleteTeam,
   listProjects,
   createProject,
   listStages,
