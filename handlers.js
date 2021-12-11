@@ -23,15 +23,78 @@ module.exports.root = ({ cf }) =>
   })
 
 // UI handlers
-module.exports.getUser = async ({ headers }) => {
+module.exports.listAll = async ({ headers }) => {
   try {
     const access = verifyJWT(headers)
-    const payload = await verifyUser(access)
+    const user = await verifyUser(access)
+
+    const teams = await Promise.all(
+      user.teams.map(
+        (key) =>
+          new Promise(async (resolve) => {
+            const payload = await deta.Base('teams').get(key)
+            resolve(payload)
+          })
+      )
+    )
+    const teamProjects = await Promise.all(
+      teams.map(
+        (team) =>
+          new Promise(async (resolve) => {
+            const payload = await deta
+              .Base('projects')
+              .fetch({ team: team.key }, {})
+
+            resolve(payload.items)
+          })
+      )
+    )
+
+    const projects = teamProjects.flat()
+
+    const projectStages = await Promise.all(
+      projects.map(
+        (project) =>
+          new Promise(async (resolve) => {
+            const payload = await deta
+              .Base('stages')
+              .fetch({ project: project.key }, {})
+            resolve(payload.items)
+          })
+      )
+    )
+
+    const stages = projectStages.flat()
+
+    const payload = { teams, projects, stages }
+
     return respondJSON({ payload })
   } catch (err) {
     return respondError(err)
   }
 }
+
+module.exports.listProjects = async ({ url, headers }) => {
+  try {
+    const access = verifyJWT(headers)
+    const user = await verifyUser(access)
+    // verify user team access
+    const { searchParams } = new URL(url)
+    const {
+      team = user.teams[0],
+      limit,
+      last,
+    } = extractParams(searchParams)('team')
+    if (team && !user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+    const payload = await deta.Base('projects').fetch({ team }, { limit, last })
+    return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
 module.exports.listUsers = async ({ url, headers }) => {
   try {
     const access = verifyJWT(headers)
@@ -57,93 +120,30 @@ module.exports.listUsers = async ({ url, headers }) => {
     return respondError(err)
   }
 }
-module.exports.listProjects = async ({ url, headers }) => {
+
+module.exports.getUser = async ({ headers }) => {
   try {
     const access = verifyJWT(headers)
-    const user = await verifyUser(access)
-    // verify user team access
-    const { searchParams } = new URL(url)
-    const {
-      team = user.teams[0],
-      limit,
-      last,
-    } = extractParams(searchParams)('team')
-    if (team && !user.teams.includes(team)) {
-      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
-    }
-    const payload = await deta.Base('projects').fetch({ team }, { limit, last })
+    const payload = await verifyUser(access)
     return respondJSON({ payload })
   } catch (err) {
     return respondError(err)
   }
 }
 
-module.exports.listAll = async ({ url, headers }) => {
+// also shared for UI
+module.exports.getEnv = async ({ url, headers }) => {
   try {
-    const access = verifyJWT(headers)
-    const user = await verifyUser(access)
-    const teams = user.teams.map((key) => ({ key, name: key }))
-    console.log('========> teams', teams[0])
-
-    const teamProjects = await Promise.all(
-      teams.map(
-        (team) =>
-          new Promise(async (resolve) => {
-            console.log('k', team)
-            let payload
-            try {
-              payload = await deta
-                .Base('projects')
-                .fetch({ team: team.key }, {})
-            } catch (e) {
-              console.log('===================== SHANE =============')
-              console.log(e)
-              console.log(e.message)
-            }
-
-            console.log('the paylaod', payload.items)
-            resolve(payload.items)
-          })
-      )
-    )
-
-    const projects = teamProjects.flat()
-    console.log('========> projects', projects[0])
-
-    const projectStages = await Promise.all(
-      projects.map(
-        (project) =>
-          new Promise(async (resolve) => {
-            const payload = await deta
-              .Base('stages')
-              .fetch({ project: project.key }, {})
-            resolve(payload.items)
-          })
-      )
-    )
-
-    const stages = projectStages.flat()
-
-    console.log('========> stages', stages[0])
-
-    const vars = await Promise.all(
-      stages.map(
-        (stage) =>
-          new Promise(async (resolve) => {
-            const payload =
-              (await getKVEnvs({
-                team: stage.team,
-                p: stage.project,
-                stage: stage.stage,
-              })) || {}
-            resolve(payload)
-          })
-      )
-    )
-    console.log('====> VARS', vars)
-    const payload = { teams, projects, stages }
-
-    return respondJSON({ payload })
+    const parsed = await parseJWT({ url, headers })
+    const vars = (await getKVEnvs(parsed)) || {}
+    return respondJSON({
+      payload: {
+        vars,
+        encrypted: false,
+        ...parsed,
+        project: parsed.p, // TODO: perhaps stick with `p` for frontend read use-cases
+      },
+    })
   } catch (err) {
     return respondError(err)
   }
@@ -188,21 +188,4 @@ module.exports.getToken = async ({ url }) => {
   }
 
   return respondJSON({ payload: { message: `Token sent to ${user}` } })
-}
-// also shared for UI
-module.exports.getEnv = async ({ url, headers }) => {
-  try {
-    const parsed = await parseJWT({ url, headers })
-    const vars = (await getKVEnvs(parsed)) || {}
-    return respondJSON({
-      payload: {
-        vars,
-        encrypted: false,
-        ...parsed,
-        project: parsed.p, // TODO: perhaps stick with `p` for frontend read use-cases
-      },
-    })
-  } catch (err) {
-    return respondError(err)
-  }
 }
