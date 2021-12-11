@@ -7,7 +7,7 @@ const {
   respondJSON,
 } = require('./modules/utils')
 const { getKVUser } = require('./modules/users')
-const { getKVEnvs } = require('./modules/envs')
+const { createTeam, createProject, getKVEnvs } = require('./modules/envs')
 const { verifyJWT, verifyUser, parseJWT } = require('./modules/auth')
 const deta = require('./modules/db')
 
@@ -74,6 +74,54 @@ module.exports.listAll = async ({ headers }) => {
   }
 }
 
+module.exports.listTeams = async ({ headers }) => {
+  try {
+    const access = verifyJWT(headers)
+    const user = await verifyUser(access)
+
+    const teams = await Promise.all(
+      user.teams.map(
+        (key) =>
+          new Promise(async (resolve) => {
+            const payload = await deta.Base('teams').get(key)
+            resolve({ ...payload, admin: false })
+          })
+      )
+    )
+    const admins = await Promise.all(
+      user.admins.map(
+        (key) =>
+          new Promise(async (resolve) => {
+            const payload = await deta.Base('teams').get(key)
+            resolve({ ...payload, admin: true })
+          })
+      )
+    )
+    return respondJSON({
+      payload: [...teams, ...admins],
+    })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.createTeam = async ({ headers, content }) => {
+  try {
+    if (!content.name || content.name.length < 3) {
+      throw new HTTPError(
+        'Invalid team name: name must be at least 3 characters',
+        400
+      )
+    }
+    const access = verifyJWT(headers)
+    const user = await verifyUser(access)
+    const key = await createTeam({ user, name: content.name })
+    return respondJSON({ payload: { key } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
 module.exports.listProjects = async ({ url, headers }) => {
   try {
     const access = verifyJWT(headers)
@@ -89,6 +137,84 @@ module.exports.listProjects = async ({ url, headers }) => {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
     const payload = await deta.Base('projects').fetch({ team }, { limit, last })
+    return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.createProject = async ({ content, headers }) => {
+  try {
+    const { team, name } = content
+    if (!name || name.length < 3) {
+      throw new HTTPError(
+        'Invalid project name: name must be at least 3 characters',
+        400
+      )
+    }
+    if (!team) {
+      throw new HTTPError('Invalid team: team not supplied', 400)
+    }
+
+    const access = verifyJWT(headers)
+    const user = await verifyUser(access)
+
+    if (!user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+
+    const payload = await createProject({ team, project: name })
+
+    return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.listStages = async ({ query, headers }) => {
+  try {
+    const { team, project, limit, last } = query
+    if (!team || !project) {
+      throw new HTTPError('Invalid request: team or project not supplied', 400)
+    }
+
+    const access = verifyJWT(headers)
+    const user = await verifyUser(access)
+
+    if (!user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+    const payload = await deta
+      .Base('stages')
+      .fetch({ team, project }, { limit, last })
+    return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.createStage = async ({ content, headers }) => {
+  try {
+    const { team, project, name } = content
+    if (!name || name.length < 3) {
+      throw new HTTPError(
+        'Invalid stage name: name must be at least 3 characters',
+        400
+      )
+    }
+    if (!team || !project) {
+      throw new HTTPError('Invalid request: team or project not supplied', 400)
+    }
+
+    const access = verifyJWT(headers)
+    const user = await verifyUser(access)
+
+    if (!user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+
+    const payload = await createStage({ team, project, stage: name })
+
     return respondJSON({ payload })
   } catch (err) {
     return respondError(err)

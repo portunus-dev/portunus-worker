@@ -18,22 +18,36 @@ module.exports.createTeam = async ({ name, user }) => {
   // update user in both deta Base and Cloudflare KV
   const users = deta.Base('users')
   // TODO: make this "transactional"
-  return Promise.all([
+  await Promise.all([
     users.update({ teams: users.util.append(team) }, user.key),
-    USERS.put(user.email, JSON.stringify({ ...user, teams: [...user.teams, team] })),
+    USERS.put(
+      user.email,
+      JSON.stringify({ ...user, teams: [...user.teams, team] })
+    ),
   ])
+  return team
 }
 module.exports.updateTeam = deta.Base('teams').put // stub for now
 
-module.exports.createProject = ({ team, project }) => deta.Base('projects').put({
-  team,
-  project,
-  key: `${team}::${project}`,
-  updated: new Date(),
-})
+module.exports.createProject = ({ team, project }) =>
+  deta.Base('projects').put({
+    team,
+    project,
+    key: `${team}::${project}`,
+    updated: new Date(),
+  })
 module.exports.updateProject = deta.Base('projects').put // stub for now
 
-module.exports.createStage = ({ team, project, stage, vars }) => {
+module.exports.createStage = ({ team, project, stage }) =>
+  deta.Base('stages').put({
+    team,
+    project: `${team}::${project}`,
+    stage,
+    key: `${team}::${project}::${stage}`,
+    updated: new Date(),
+  })
+
+module.exports.createStageVars = ({ team, project, stage, vars }) => {
   const updated = new Date()
   const key = `${team}::${project}::${stage}`
   // TODO: make this "transactional"
@@ -49,7 +63,7 @@ module.exports.createStage = ({ team, project, stage, vars }) => {
     KV.put(key, JSON.stringify(vars), { metadata: { updated } }),
   ])
 }
-module.exports.updateStage = async ({ team, project, stage, updates }) => {
+module.exports.updateStageVars = async ({ team, project, stage, updates }) => {
   const updated = new Date()
   const key = `${team}::${project}::${stage}`
   // updates = vars update actions
@@ -76,7 +90,9 @@ module.exports.updateStage = async ({ team, project, stage, updates }) => {
   })
   if (vars !== 0) {
     const stages = deta.Base('stages')
-    actions.push(stages.update({ vars: stages.util.increment(vars), updated }, key))
+    actions.push(
+      stages.update({ vars: stages.util.increment(vars), updated }, key)
+    )
   }
   actions.push(KV.put(key, JSON.stringify(kvVars), { metadata: { updated } }))
   return Promise.all(actions)
