@@ -6,6 +6,7 @@ const {
   respondError,
   respondJSON,
 } = require('./modules/utils')
+<<<<<<< HEAD
 const {
   getKVUser,
   listTeamUsers,
@@ -26,6 +27,11 @@ const {
 } = require('./modules/teams')
 
 const { parseJWT } = require('./modules/auth')
+=======
+const { getKVUser } = require('./modules/users')
+const { createTeam, createProject, getKVEnvs } = require('./modules/envs')
+const { verifyJWT, verifyUser, parseJWT } = require('./modules/auth')
+>>>>>>> API - create routes
 const deta = require('./modules/db')
 
 const EMAIL_REGEXP = new RegExp(/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/)
@@ -96,6 +102,7 @@ module.exports.listAll = async ({ user }) => {
   }
 }
 
+<<<<<<< HEAD
 module.exports.listTeams = async ({ user }) => {
   try {
     const teams = await listTeams({ user })
@@ -125,11 +132,40 @@ module.exports.updateTeamName = async ({ user, content: { team, name } }) => {
     }
     await updateTeamName({ team, name })
     return respondJSON({ payload: { key: team } })
+=======
+module.exports.listTeams = async ({ headers }) => {
+  try {
+    const access = verifyJWT(headers)
+    const user = await verifyUser(access)
+
+    const teams = await Promise.all(
+      user.teams.map(
+        (key) =>
+          new Promise(async (resolve) => {
+            const payload = await deta.Base('teams').get(key)
+            resolve({ ...payload, admin: false })
+          })
+      )
+    )
+    const admins = await Promise.all(
+      user.admins.map(
+        (key) =>
+          new Promise(async (resolve) => {
+            const payload = await deta.Base('teams').get(key)
+            resolve({ ...payload, admin: true })
+          })
+      )
+    )
+    return respondJSON({
+      payload: [...teams, ...admins],
+    })
+>>>>>>> API - create routes
   } catch (err) {
     return respondError(err)
   }
 }
 
+<<<<<<< HEAD
 module.exports.deleteTeam = async ({ user, content: { team } }) => {
   try {
     if (!team) {
@@ -141,12 +177,30 @@ module.exports.deleteTeam = async ({ user, content: { team } }) => {
     }
     await deleteTeam({ team })
     return respondJSON({ payload: { key: team } })
+=======
+module.exports.createTeam = async ({ headers, content }) => {
+  try {
+    if (!content.name || content.name.length < 3) {
+      throw new HTTPError(
+        'Invalid team name: name must be at least 3 characters',
+        400
+      )
+    }
+    const access = verifyJWT(headers)
+    const user = await verifyUser(access)
+    const key = await createTeam({ user, name: content.name })
+    return respondJSON({ payload: { key } })
+>>>>>>> API - create routes
   } catch (err) {
     return respondError(err)
   }
 }
 
+<<<<<<< HEAD
 module.exports.listProjects = async ({ url, user }) => {
+=======
+module.exports.listProjects = async ({ url, headers }) => {
+>>>>>>> API - create routes
   try {
     // verify user team access
     const { searchParams } = new URL(url)
@@ -165,7 +219,89 @@ module.exports.listProjects = async ({ url, user }) => {
   }
 }
 
+<<<<<<< HEAD
 module.exports.createProject = async ({ content: { team, name }, user }) => {
+=======
+module.exports.createProject = async ({ content, headers }) => {
+  try {
+    const { team, name } = content
+    if (!name || name.length < 3) {
+      throw new HTTPError(
+        'Invalid project name: name must be at least 3 characters',
+        400
+      )
+    }
+    if (!team) {
+      throw new HTTPError('Invalid team: team not supplied', 400)
+    }
+
+    const access = verifyJWT(headers)
+    const user = await verifyUser(access)
+
+    if (!user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+
+    const payload = await createProject({ team, project: name })
+
+    return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.listStages = async ({ query, headers }) => {
+  try {
+    const { team, project, limit, last } = query
+    if (!team || !project) {
+      throw new HTTPError('Invalid request: team or project not supplied', 400)
+    }
+
+    const access = verifyJWT(headers)
+    const user = await verifyUser(access)
+
+    if (!user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+    const payload = await deta
+      .Base('stages')
+      .fetch({ team, project }, { limit, last })
+    return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.createStage = async ({ content, headers }) => {
+  try {
+    const { team, project, name } = content
+    if (!name || name.length < 3) {
+      throw new HTTPError(
+        'Invalid stage name: name must be at least 3 characters',
+        400
+      )
+    }
+    if (!team || !project) {
+      throw new HTTPError('Invalid request: team or project not supplied', 400)
+    }
+
+    const access = verifyJWT(headers)
+    const user = await verifyUser(access)
+
+    if (!user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+
+    const payload = await createStage({ team, project, stage: name })
+
+    return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.listUsers = async ({ url, headers }) => {
+>>>>>>> API - create routes
   try {
     if (!team) {
       throw new HTTPError('Invalid team: team not supplied', 400)
