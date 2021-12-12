@@ -7,7 +7,7 @@ const {
   respondJSON,
 } = require('./modules/utils')
 const { getKVUser } = require('./modules/users')
-const { createTeam, createProject, getKVEnvs } = require('./modules/envs')
+const { createTeam, createProject, createStage, getKVEnvs } = require('./modules/envs')
 const { verifyJWT, verifyUser, parseJWT } = require('./modules/auth')
 const deta = require('./modules/db')
 
