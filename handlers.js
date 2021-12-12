@@ -29,39 +29,16 @@ module.exports.listAll = async ({ headers }) => {
     const user = await verifyUser(access)
 
     const teams = await Promise.all(
-      user.teams.map(
-        (key) =>
-          new Promise(async (resolve) => {
-            const payload = await deta.Base('teams').get(key)
-            resolve(payload)
-          })
-      )
+      user.teams.map((key) => deta.Base('teams').get(key))
     )
     const teamProjects = await Promise.all(
-      teams.map(
-        (team) =>
-          new Promise(async (resolve) => {
-            const payload = await deta
-              .Base('projects')
-              .fetch({ team: team.key }, {})
-
-            resolve(payload.items)
-          })
-      )
+      teams.map((t) => deta.Base('projects').fetch({ team: t.key }, {}).then(({ items }) => items ))
     )
 
     const projects = teamProjects.flat()
 
     const projectStages = await Promise.all(
-      projects.map(
-        (project) =>
-          new Promise(async (resolve) => {
-            const payload = await deta
-              .Base('stages')
-              .fetch({ project: project.key }, {})
-            resolve(payload.items)
-          })
-      )
+      projects.map((p) => deta.Base('stages').fetch({ project: p.key }, {}).then(({ items }) => items ))
     )
 
     const stages = projectStages.flat()
