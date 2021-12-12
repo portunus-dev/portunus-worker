@@ -56,27 +56,11 @@ module.exports.listTeams = async ({ headers }) => {
     const access = verifyJWT(headers)
     const user = await verifyUser(access)
 
-    const teams = await Promise.all(
-      user.teams.map(
-        (key) =>
-          new Promise(async (resolve) => {
-            const payload = await deta.Base('teams').get(key)
-            resolve({ ...payload, admin: false })
-          })
-      )
-    )
-    const admins = await Promise.all(
-      user.admins.map(
-        (key) =>
-          new Promise(async (resolve) => {
-            const payload = await deta.Base('teams').get(key)
-            resolve({ ...payload, admin: true })
-          })
-      )
-    )
-    return respondJSON({
-      payload: [...teams, ...admins],
-    })
+    const payload = await Promise.all([
+      ...user.teams.map((key) => deta.Base('teams').get(key).then((p) => ({ ...p, admin: false }))),
+      ...user.admins.map((key) => deta.Base('teams').get(key).then((p) => ({ ...p, admin: true }))),
+    ])
+    return respondJSON({ payload })
   } catch (err) {
     return respondError(err)
   }
