@@ -8,10 +8,19 @@ const {
 } = require('./modules/utils')
 const { getKVUser } = require('./modules/users')
 const { createTeam, createProject, createStage, getKVEnvs } = require('./modules/envs')
-const { verifyJWT, verifyUser, parseJWT } = require('./modules/auth')
+const { parseJWT } = require('./modules/auth')
 const deta = require('./modules/db')
 
 // process.env is not avail in workers, direct access like KV namespaces and secrets
+
+module.exports.withRequiredName = (key, length = 3) => async ({ content }) => {
+  if (!content.name || content.name.length < length) {
+    return respondError(HTTPError(
+      `Invalid ${key} name: name must be at least 3 characters`,
+      400
+    ))
+  }
+}
 
 module.exports.root = ({ cf }) =>
   respondJSON({
@@ -23,11 +32,8 @@ module.exports.root = ({ cf }) =>
   })
 
 // UI handlers
-module.exports.listAll = async ({ headers }) => {
+module.exports.listAll = async ({ user }) => {
   try {
-    const access = verifyJWT(headers)
-    const user = await verifyUser(access)
-
     const teams = await Promise.all(
       user.teams.map((key) => deta.Base('teams').get(key))
     )
@@ -51,11 +57,8 @@ module.exports.listAll = async ({ headers }) => {
   }
 }
 
-module.exports.listTeams = async ({ headers }) => {
+module.exports.listTeams = async ({ user }) => {
   try {
-    const access = verifyJWT(headers)
-    const user = await verifyUser(access)
-
     const payload = await Promise.all([
       ...user.teams.map((key) => deta.Base('teams').get(key).then((p) => ({ ...p, admin: false }))),
       ...user.admins.map((key) => deta.Base('teams').get(key).then((p) => ({ ...p, admin: true }))),
@@ -66,27 +69,17 @@ module.exports.listTeams = async ({ headers }) => {
   }
 }
 
-module.exports.createTeam = async ({ headers, content }) => {
+module.exports.createTeam = async ({ user, content: { name } }) => {
   try {
-    if (!content.name || content.name.length < 3) {
-      throw new HTTPError(
-        'Invalid team name: name must be at least 3 characters',
-        400
-      )
-    }
-    const access = verifyJWT(headers)
-    const user = await verifyUser(access)
-    const key = await createTeam({ user, name: content.name })
+    const key = await createTeam({ user, name })
     return respondJSON({ payload: { key } })
   } catch (err) {
     return respondError(err)
   }
 }
 
-module.exports.listProjects = async ({ url, headers }) => {
+module.exports.listProjects = async ({ url, user }) => {
   try {
-    const access = verifyJWT(headers)
-    const user = await verifyUser(access)
     // verify user team access
     const { searchParams } = new URL(url)
     const {
@@ -104,21 +97,11 @@ module.exports.listProjects = async ({ url, headers }) => {
   }
 }
 
-module.exports.createProject = async ({ content, headers }) => {
+module.exports.createProject = async ({ content: { team, name }, user }) => {
   try {
-    const { team, name } = content
-    if (!name || name.length < 3) {
-      throw new HTTPError(
-        'Invalid project name: name must be at least 3 characters',
-        400
-      )
-    }
     if (!team) {
       throw new HTTPError('Invalid team: team not supplied', 400)
     }
-
-    const access = verifyJWT(headers)
-    const user = await verifyUser(access)
 
     if (!user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
@@ -132,43 +115,30 @@ module.exports.createProject = async ({ content, headers }) => {
   }
 }
 
-module.exports.listStages = async ({ query, headers }) => {
+module.exports.listStages = async ({ query, user }) => {
   try {
     const { team, project, limit, last } = query
     if (!team || !project) {
       throw new HTTPError('Invalid request: team or project not supplied', 400)
     }
 
-    const access = verifyJWT(headers)
-    const user = await verifyUser(access)
-
     if (!user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
     const payload = await deta
       .Base('stages')
-      .fetch({ team, project }, { limit, last })
+      .fetch({ project: `${team}::${project}` }, { limit, last })
     return respondJSON({ payload })
   } catch (err) {
     return respondError(err)
   }
 }
 
-module.exports.createStage = async ({ content, headers }) => {
+module.exports.createStage = async ({ content: { team, project, name }, user }) => {
   try {
-    const { team, project, name } = content
-    if (!name || name.length < 3) {
-      throw new HTTPError(
-        'Invalid stage name: name must be at least 3 characters',
-        400
-      )
-    }
     if (!team || !project) {
       throw new HTTPError('Invalid request: team or project not supplied', 400)
     }
-
-    const access = verifyJWT(headers)
-    const user = await verifyUser(access)
 
     if (!user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
@@ -182,10 +152,8 @@ module.exports.createStage = async ({ content, headers }) => {
   }
 }
 
-module.exports.listUsers = async ({ url, headers }) => {
+module.exports.listUsers = async ({ url, user }) => {
   try {
-    const access = verifyJWT(headers)
-    const user = await verifyUser(access)
     // verify user team access
     const { searchParams } = new URL(url)
     const {
@@ -202,16 +170,6 @@ module.exports.listUsers = async ({ url, headers }) => {
         limit,
         last,
       })
-    return respondJSON({ payload })
-  } catch (err) {
-    return respondError(err)
-  }
-}
-
-module.exports.getUser = async ({ headers }) => {
-  try {
-    const access = verifyJWT(headers)
-    const payload = await verifyUser(access)
     return respondJSON({ payload })
   } catch (err) {
     return respondError(err)
