@@ -7,20 +7,38 @@ const {
   respondJSON,
 } = require('./modules/utils')
 const { getKVUser } = require('./modules/users')
-const { createTeam, createProject, createStage, getKVEnvs } = require('./modules/envs')
+const {
+  createTeam,
+  createProject,
+  createStage,
+  getKVEnvs,
+} = require('./modules/envs')
+const { createTeam, listTeams, getTeam } = require('./modules/teams')
+
 const { parseJWT } = require('./modules/auth')
 const deta = require('./modules/db')
 
 // process.env is not avail in workers, direct access like KV namespaces and secrets
 
-module.exports.withRequiredName = (key, length = 3) => async ({ content }) => {
-  if (!content.name || content.name.length < length) {
-    return respondError(HTTPError(
-      `Invalid ${key} name: name must be at least 3 characters`,
-      400
-    ))
+module.exports.withRequiredName =
+  (key, length = 3) =>
+  async ({ content }) => {
+    if (!content.name || content.name.length < length) {
+      return respondError(
+        HTTPError(
+          `Invalid ${key} name: name must be at least ${length} characters`,
+          400
+        )
+      )
+    }
   }
-}
+
+/*
+  ====[NOTE]
+  - api convention is to wrap specific response in { payload: {} }
+  - for specific entities, respond with their name (e.g. team or teams)
+  - for create/update/delete, respond with key or name
+ */
 
 module.exports.root = ({ cf }) =>
   respondJSON({
@@ -34,17 +52,25 @@ module.exports.root = ({ cf }) =>
 // UI handlers
 module.exports.listAll = async ({ user }) => {
   try {
-    const teams = await Promise.all(
-      user.teams.map((key) => deta.Base('teams').get(key))
-    )
+    const teams = await Promise.all(user.teams.map((key) => getTeam(key)))
     const teamProjects = await Promise.all(
-      teams.map((t) => deta.Base('projects').fetch({ team: t.key }, {}).then(({ items }) => items ))
+      teams.map((t) =>
+        deta
+          .Base('projects')
+          .fetch({ team: t.key }, {})
+          .then(({ items }) => items)
+      )
     )
 
     const projects = teamProjects.flat()
 
     const projectStages = await Promise.all(
-      projects.map((p) => deta.Base('stages').fetch({ project: p.key }, {}).then(({ items }) => items ))
+      projects.map((p) =>
+        deta
+          .Base('stages')
+          .fetch({ project: p.key }, {})
+          .then(({ items }) => items)
+      )
     )
 
     const stages = projectStages.flat()
@@ -59,11 +85,8 @@ module.exports.listAll = async ({ user }) => {
 
 module.exports.listTeams = async ({ user }) => {
   try {
-    const payload = await Promise.all([
-      ...user.teams.map((key) => deta.Base('teams').get(key).then((p) => ({ ...p, admin: false }))),
-      ...user.admins.map((key) => deta.Base('teams').get(key).then((p) => ({ ...p, admin: true }))),
-    ])
-    return respondJSON({ payload })
+    const teams = listTeams({ user })
+    return respondJSON({ payload: { teams } })
   } catch (err) {
     return respondError(err)
   }
@@ -72,6 +95,23 @@ module.exports.listTeams = async ({ user }) => {
 module.exports.createTeam = async ({ user, content: { name } }) => {
   try {
     const key = await createTeam({ user, name })
+    return respondJSON({ payload: { key } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.updateTeamName = async ({ user, content: { team, name } }) => {
+  try {
+    if (!team) {
+      throw new HTTPError('Invalid team: team not supplied', 400)
+    }
+
+    // TODO: owner or admin only
+    if (!user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+    const key = await updateTeamName({ team, name })
     return respondJSON({ payload: { key } })
   } catch (err) {
     return respondError(err)
@@ -134,7 +174,10 @@ module.exports.listStages = async ({ query, user }) => {
   }
 }
 
-module.exports.createStage = async ({ content: { team, project, name }, user }) => {
+module.exports.createStage = async ({
+  content: { team, project, name },
+  user,
+}) => {
   try {
     if (!team || !project) {
       throw new HTTPError('Invalid request: team or project not supplied', 400)

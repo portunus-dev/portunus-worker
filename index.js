@@ -5,6 +5,7 @@ const {
   root,
   listTeams,
   createTeam,
+  updateTeamName,
   listProjects,
   createProject,
   listStages,
@@ -31,11 +32,26 @@ router.get('/all', withRequireUser, listAll)
 
 router.get('/teams', withRequireUser, listTeams)
 // router.get('/team', getTeam)
-router.post('/team', withContent, withRequiredName('team'), withRequireUser, createTeam)
-// router.put('/team/update', updateTeam)
+router.post(
+  '/team',
+  withContent,
+  withRequiredName('team'),
+  withRequireUser,
+  createTeam
+)
+
+router.put(
+  '/team/update',
+  withContent,
+  withRequiredName('team'),
+  withRequireUser,
+  updateTeamName
+)
 // router.delete('/team/delete', deleteTeam)
 
-router.get('/user', withRequireUser, ({ user }) => respondJSON(user))
+router.get('/user', withRequireUser, ({ user }) =>
+  respondJSON({ payload: { user } })
+)
 router.get('/users', withRequireUser, listUsers)
 // router.put('/user/team', addUserToTeam)
 // router.put('/user/admin', addUserToAdmin)
@@ -44,13 +60,25 @@ router.get('/users', withRequireUser, listUsers)
 
 router.get('/projects', withRequireUser, listProjects)
 // router.get('/project', getProject)
-router.put('/project', withContent, withRequiredName('project'), withRequireUser, createProject)
+router.put(
+  '/project',
+  withContent,
+  withRequiredName('project'),
+  withRequireUser,
+  createProject
+)
 // router.put('/project/update', updateProject)
 // router.delete('/project/delete', deleteProject)
 
 router.get('/stages', withRequireUser, listStages)
 // router.get('/stage', getStage)
-router.put('/stage', withContent, withRequireUser('stage'), withRequireUser, createStage)
+router.put(
+  '/stage',
+  withContent,
+  withRequireUser('stage'),
+  withRequireUser,
+  createStage
+)
 // router.put('/stage/update', updateStage)
 // router.delete('/stage/delete', deleteStage)
 
