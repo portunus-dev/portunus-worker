@@ -1,6 +1,5 @@
 const deta = require('./db')
-const { getKVEnvs } = require('./envs')
-const { update } = require('./users')
+const { addUserToTeam } = require('./users')
 
 /*
   TEAM
@@ -13,24 +12,9 @@ const { update } = require('./users')
 module.exports.createTeam = async ({ name, user }) => {
   // create team metadata in deta Base
   const { key: team } = await deta.Base('teams').put({ name })
-  // update user in both deta Base and Cloudflare KV
-  const users = deta.Base('users')
-  // TODO: make this "transactional"
-  // TODO: unify with other user updates e.g. ./user.update
-  await Promise.all([
-    users.update(
-      { teams: users.util.append(team), admins: users.util.append(team) },
-      user.key
-    ),
-    USERS.put(
-      user.email,
-      JSON.stringify({
-        ...user,
-        teams: [...user.teams, team],
-        admins: [...user.admins, team],
-      })
-    ),
-  ])
+
+  await addUserToTeam({ user, team })
+
   return team
 }
 
