@@ -6,7 +6,7 @@ const {
   respondError,
   respondJSON,
 } = require('./modules/utils')
-const { getKVUser } = require('./modules/users')
+const { getKVUser, listTeamUsers, createUser } = require('./modules/users')
 const {
   createTeam,
   createProject,
@@ -217,25 +217,40 @@ module.exports.createStage = async ({
   }
 }
 
-module.exports.listUsers = async ({ url, user }) => {
+module.exports.listUsers = async ({ query, user }) => {
   try {
-    // verify user team access
-    const { searchParams } = new URL(url)
-    const {
-      team = user.teams[0],
-      limit,
-      last,
-    } = extractParams(searchParams)('team', 'limit', 'last')
+    const { team = user.teams[0], limit, last } = query
+
     if (team && !user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
-    const payload = await deta
-      .Base('users')
-      .fetch([{ 'teams?contains': team }, { 'admins?contains': team }], {
-        limit,
-        last,
-      })
+    const payload = await listTeamUsers({ team, limit, last })
     return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+const EMAIL_REGEXP = new RegExp(/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/)
+
+module.exports.createUser = async ({ content: { email } }) => {
+  if (!email || !EMAIL_REGEXP.test(email)) {
+    throw new HTTPError('valid email is required', 400)
+  }
+  try {
+    const { key } = await createUser(email)
+
+    return respondJSON({ payload: { key } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.deleteUser = async ({ user }) => {
+  try {
+    await deleteUser(user)
+
+    return respondJSON({ payload: { key: user.key } })
   } catch (err) {
     return respondError(err)
   }
