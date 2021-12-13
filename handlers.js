@@ -107,9 +107,8 @@ module.exports.updateTeamName = async ({ user, content: { team, name } }) => {
       throw new HTTPError('Invalid team: team not supplied', 400)
     }
 
-    // TODO: owner or admin only
-    if (!user.teams.includes(team)) {
-      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    if (!user.admins.includes(team)) {
+      throw new HTTPError('Invalid access: team admin required', 403)
     }
     const key = await updateTeamName({ team, name })
     return respondJSON({ payload: { key } })
