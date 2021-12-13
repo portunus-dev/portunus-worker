@@ -269,7 +269,48 @@ module.exports.createStage = async ({
   }
 }
 
-module.exports.listUsers = async ({ query, user }) => {
+module.exports.deleteStage = async ({ content: { stage }, user }) => {
+  try {
+    if (!stage) {
+      throw new HTTPError('Invalid request: stage not supplied', 400)
+    }
+
+    if (!user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+
+    await deleteStage(stage)
+
+    return respondJSON({ payload: { key: stage } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.updateStageVars = async ({
+  content: { stage, updates },
+  user,
+}) => {
+  try {
+    if (!stage) {
+      throw new HTTPError('Invalid request: stage not supplied', 400)
+    }
+
+    const team = stage.split('::')[0] // {team}::{project}::{stage}
+
+    if (!user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+
+    const changes = await updateStageVars({ stage, updates })
+
+    return respondJSON({ payload: { key: stage, updates: changes } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.listUsers = async ({ url, user }) => {
   try {
     const { team = user.teams[0], limit, last } = query
     if (!team) {
