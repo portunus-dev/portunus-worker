@@ -1,5 +1,5 @@
 const deta = require('./db')
-const { addUserToTeam, removeUserFromTeam } = require('./users')
+const { addUserToTeam, removeUserFromTeam, addUserToAdmin } = require('./users')
 
 /*
   TEAM
@@ -14,6 +14,7 @@ module.exports.createTeam = async ({ name, user }) => {
   const { key: team } = await deta.Base('teams').put({ name })
 
   await addUserToTeam({ user, team })
+  await addUserToAdmin({ user, team })
 
   return team
 }
