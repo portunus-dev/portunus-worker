@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken')
 
-const { extractParams, parseProj, HTTPError } = require('./utils')
+const { extractParams, parseProj, HTTPError, respondError } = require('./utils')
 const { getKVUser } = require('./users')
 
 // process.env is not avail in workers, direct access like KV namespaces and secrets
@@ -51,4 +51,14 @@ module.exports.parseJWT = async ({ url, headers }) => {
     throw new HTTPError('Invalid portunus-jwt: no project access', 400)
   }
   return { user, team, p, stage }
+}
+
+module.exports.withRequireUser = async (req) => {
+  const { headers } = req
+  try {
+    const access = this.verifyJWT(headers)
+    req.user = await this.verifyUser(access)
+  } catch (err) {
+    return respondError(err)
+  }
 }

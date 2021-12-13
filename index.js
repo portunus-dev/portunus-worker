@@ -1,9 +1,8 @@
-import { Router } from 'itty-router'
-import { withContent } from 'itty-router-extras'
+const { Router } = require('itty-router')
+const { withContent } = require('itty-router-extras')
 
 const {
   root,
-  getUser,
   listTeams,
   createTeam,
   listProjects,
@@ -14,42 +13,44 @@ const {
   listAll,
   getToken,
   getEnv,
+  withRequiredName,
 } = require('./handlers')
-const { corsHeaders } = require('./modules/utils')
+const { corsHeaders, respondJSON } = require('./modules/utils')
+const { withRequireUser } = require('./modules/auth')
 
 const router = Router()
 
-const withCors = (request) => {
+const withCors = (_) => {
   // TODO: could check in greater detail
   return new Response(null, { headers: { ...corsHeaders } })
 }
 router.options('*', withCors)
 
 // UI
-router.get('/all', listAll)
+router.get('/all', withRequireUser, listAll)
 
-router.get('/teams', listTeams)
+router.get('/teams', withRequireUser, listTeams)
 // router.get('/team', getTeam)
-router.post('/team', withContent, createTeam)
+router.post('/team', withContent, withRequiredName('team'), withRequireUser, createTeam)
 // router.put('/team/update', updateTeam)
 // router.delete('/team/delete', deleteTeam)
 
-router.get('/user', getUser)
-router.get('/users', listUsers)
+router.get('/user', withRequireUser, ({ user }) => respondJSON(user))
+router.get('/users', withRequireUser, listUsers)
 // router.put('/user/team', addUserToTeam)
 // router.put('/user/admin', addUserToAdmin)
 // router.delete('/user/team', removeUserFromTeam)
 // router.delete('/user/admin', removeUserFromAdmin)
 
-router.get('/projects', listProjects)
+router.get('/projects', withRequireUser, listProjects)
 // router.get('/project', getProject)
-router.put('/project', withContent, createProject)
+router.put('/project', withContent, withRequiredName('project'), withRequireUser, createProject)
 // router.put('/project/update', updateProject)
 // router.delete('/project/delete', deleteProject)
 
-router.get('/stages', listStages)
+router.get('/stages', withRequireUser, listStages)
 // router.get('/stage', getStage)
-router.put('/stage', withContent, createStage)
+router.put('/stage', withContent, withRequireUser('stage'), withRequireUser, createStage)
 // router.put('/stage/update', updateStage)
 // router.delete('/stage/delete', deleteStage)
 
