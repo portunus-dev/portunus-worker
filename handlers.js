@@ -19,6 +19,8 @@ const {
 const { parseJWT } = require('./modules/auth')
 const deta = require('./modules/db')
 
+const EMAIL_REGEXP = new RegExp(/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/)
+
 // process.env is not avail in workers, direct access like KV namespaces and secrets
 
 module.exports.withRequiredName =
@@ -226,8 +228,6 @@ module.exports.listUsers = async ({ query, user }) => {
   }
 }
 
-const EMAIL_REGEXP = new RegExp(/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/)
-
 module.exports.createUser = async ({ content: { email } }) => {
   if (!email || !EMAIL_REGEXP.test(email)) {
     throw new HTTPError('valid email is required', 400)
@@ -236,6 +236,37 @@ module.exports.createUser = async ({ content: { email } }) => {
     const { key } = await createUser(email)
 
     return respondJSON({ payload: { key } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.addUserToTeam = async ({
+  content: { userEmail, team },
+  user,
+}) => {
+  try {
+    if (!team) {
+      throw new HTTPError('Invalid team: team not supplied', 400)
+    }
+
+    if (!userEmail && !EMAIL_REGEXP.test(userEmail)) {
+      throw new HTTPError('Invalid user: a valid email is required', 400)
+    }
+
+    if (!user.admins.includes(team)) {
+      throw new HTTPError('Invalid access: team admin required', 403)
+    }
+
+    const kvUser = USERS.get(userEmail)
+
+    if (!kvUser) {
+      throw new HTTPError('Invalid user: user not found', 400)
+    }
+
+    await addUserToTeam({ team, user: kvUser })
+
+    return respondJSON({ payload: { key: kvUser.key } })
   } catch (err) {
     return respondError(err)
   }

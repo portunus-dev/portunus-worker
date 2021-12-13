@@ -21,7 +21,7 @@ module.exports.createUser = (email) => {
 
   // TODO: do this "transactionally"
   const dbUser = await deta.Base('users').insert(user)
-  await = USERS.put(user.email, JSON.stringify(user))
+  await = USERS.put(user.email, JSON.stringify(dbUser))
 
   return dbUser
 }
@@ -37,6 +37,26 @@ module.exports.update = (user) => {
   ])
 }
 
+module.exports.addUserToTeam = ({ user, team }) => {
+  // update user in both deta Base and Cloudflare KV
+  const users = deta.Base('users')
+  // TODO: make this "transactional"
+  // TODO: unify with other user updates e.g. ./user.update
+  return await Promise.all([
+    users.update(
+      { teams: users.util.append(team), admins: users.util.append(team) },
+      user.key
+    ),
+    USERS.put(
+      user.email,
+      JSON.stringify({
+        ...user,
+        teams: [...user.teams, team],
+        admins: [...user.admins, team],
+      })
+    ),
+  ])
+}
 module.exports.deleteUser = (user) => {
   if (!user.key) {
     throw new Error('user.key is required')

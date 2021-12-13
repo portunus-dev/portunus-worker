@@ -12,6 +12,8 @@ const {
   createStage,
   listUsers,
   createUser,
+  addUserToTeam,
+  removeUserFromTeam,
   deleteUser,
   listAll,
   getToken,
@@ -56,12 +58,12 @@ router.get('/users', withRequireUser, listUsers)
 router.get('/user', withRequireUser, ({ user }) =>
   respondJSON({ payload: { user } })
 )
-router.post('/user/create', createUser)
-// router.put('/user/team', addUserToTeam)
-// router.put('/user/admin', addUserToAdmin)
+router.post('/user/create', withContent, createUser)
+router.put('/user/team', addUserToTeam)
 // router.delete('/user/team', removeUserFromTeam)
+// router.put('/user/admin', addUserToAdmin)
 // router.delete('/user/admin', removeUserFromAdmin)
-router.post('/user/delete', withRequireUser, deleteUser)
+router.delete('/user/delete', withContent, withRequireUser, deleteUser)
 
 router.get('/projects', withRequireUser, listProjects)
 // router.get('/project', getProject)
