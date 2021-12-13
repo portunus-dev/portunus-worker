@@ -1,5 +1,5 @@
 const deta = require('./db')
-const { addUserToTeam } = require('./users')
+const { addUserToTeam, removeUserFromTeam } = require('./users')
 
 /*
   TEAM
@@ -51,7 +51,7 @@ module.exports.deleteTeam = async ({ team }) => {
   // delete stages and KV
   const { items: stages } = await deta
     .Base('stages')
-    .fetch({ 'key?pfx': `::${team}` })
+    .fetch({ 'key?pfx': `${team}::` })
 
   await Promise.all(
     stages.map(
@@ -76,31 +76,7 @@ module.exports.deleteTeam = async ({ team }) => {
     .Base('users')
     .fetch([{ 'teams?contains': team }, { 'admins?contains': team }])
 
-  const detaUsers = deta.Base('users')
-  // TODO: make this "transactional"
-  // TODO: unify with other user updates e.g. ./user.update
-  await Promise.all(
-    users.map(
-      async ({ key, email, teams, admins }) =>
-        await Promise.all([
-          detaUsers.update(
-            {
-              teams: detaUsers.util.remove(team),
-              admins: detaUsers.util.remove(team),
-            },
-            key
-          ),
-          USERS.put(
-            email,
-            JSON.stringify({
-              ...user,
-              teams: teams.filter((o) => o === team),
-              admins: admins.filter((o) => o === team),
-            })
-          ),
-        ])
-    )
-  )
+  await Promise.all(users.map((user) => removeUserFromTeam({ user, team })))
 
   return team
 }

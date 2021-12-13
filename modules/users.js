@@ -57,6 +57,28 @@ module.exports.addUserToTeam = ({ user, team }) => {
     ),
   ])
 }
+
+module.exports.removeUserFromTeam = ({ user, team }) => {
+  // update user in both deta Base and Cloudflare KV
+
+  const teams = user.teams.filter((o) => o !== team)
+  const admins = user.admins.filter((o) => o !== team)
+
+  // TODO: make this "transactional"
+  // TODO: unify with other user updates e.g. ./user.update
+  return await Promise.all([
+    users.update({ teams, admins }, user.key),
+    USERS.put(
+      user.email,
+      JSON.stringify({
+        ...user,
+        teams,
+        admins,
+      })
+    ),
+  ])
+}
+
 module.exports.deleteUser = (user) => {
   if (!user.key) {
     throw new Error('user.key is required')

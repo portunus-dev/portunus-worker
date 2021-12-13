@@ -61,7 +61,7 @@ router.get('/user', withRequireUser, ({ user }) =>
 )
 router.post('/user/create', withContent, createUser)
 router.put('/user/team', addUserToTeam)
-// router.delete('/user/team', removeUserFromTeam)
+router.delete('/user/team', removeUserFromTeam)
 // router.put('/user/admin', addUserToAdmin)
 // router.delete('/user/admin', removeUserFromAdmin)
 router.delete('/user/delete', withContent, withRequireUser, deleteUser)
