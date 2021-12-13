@@ -8,7 +8,6 @@ const deta = require('./db')
   - update = update team name
 */
 
-// TODO: designate team.owner, who can manage admins, who can change name and add users
 module.exports.createTeam = async ({ name, user }) => {
   // create team metadata in deta Base
   const { key: team } = await deta.Base('teams').put({ name })
@@ -16,10 +15,17 @@ module.exports.createTeam = async ({ name, user }) => {
   const users = deta.Base('users')
   // TODO: make this "transactional"
   await Promise.all([
-    users.update({ teams: users.util.append(team) }, user.key),
+    users.update(
+      { teams: users.util.append(team), admins: users.util.append(team) },
+      user.key
+    ),
     USERS.put(
       user.email,
-      JSON.stringify({ ...user, teams: [...user.teams, team] })
+      JSON.stringify({
+        ...user,
+        teams: [...user.teams, team],
+        admins: [...user.admins, team],
+      })
     ),
   ])
   return team
