@@ -1,5 +1,5 @@
 const deta = require('./db')
-const { addUserToTeam } = require('./users')
+const { addUserToTeam, removeUserFromTeam } = require('./users')
 
 /*
   TEAM
@@ -94,31 +94,7 @@ module.exports.deleteTeam = async ({ team }) => {
     console.warn('Deta fetch failed')
   }
 
-  const detaUsers = deta.Base('users')
-  // TODO: make this "transactional"
-  // TODO: unify with other user updates e.g. ./user.update
-  await Promise.all(
-    users.map(
-      async (user) =>
-        await Promise.all([
-          detaUsers.update(
-            {
-              teams: user.teams.filter((o) => o !== team),
-              admins: user.admins.filter((o) => o !== team),
-            },
-            user.key
-          ),
-          USERS.put(
-            user.email,
-            JSON.stringify({
-              ...user,
-              teams: user.teams.filter((o) => o !== team),
-              admins: user.admins.filter((o) => o !== team),
-            })
-          ),
-        ])
-    )
-  )
+  await Promise.all(users.map((user) => removeUserFromTeam({ user, team })))
 
   return team
 }
