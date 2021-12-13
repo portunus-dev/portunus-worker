@@ -1,4 +1,6 @@
 const deta = require('./db')
+const { getKVEnvs } = require('./envs')
+const { update } = require('./users')
 
 /*
   TEAM
@@ -14,6 +16,7 @@ module.exports.createTeam = async ({ name, user }) => {
   // update user in both deta Base and Cloudflare KV
   const users = deta.Base('users')
   // TODO: make this "transactional"
+  // TODO: unify with other user updates e.g. ./user.update
   await Promise.all([
     users.update(
       { teams: users.util.append(team), admins: users.util.append(team) },
@@ -56,4 +59,64 @@ module.exports.updateTeamName = ({ team, name }) => {
     },
     team
   )
+}
+
+// TODO: this should be transactional?
+// TODO: update it with deleteStage, deleteProject, removeUserFromTeam functions
+module.exports.deleteTeam = async ({ team }) => {
+  // delete stages and KV
+  const { items: stages } = await deta
+    .Base('stages')
+    .fetch({ 'key?pfx': `::${team}` })
+
+  await Promise.all(
+    stages.map(
+      async ({ key }) =>
+        await Promise.all([deta.Base('stages').delete(key), KV.delete(key)])
+    )
+  )
+
+  // delete projects
+  const { items: projects } = await deta
+    .Base('projects')
+    .fetch({ 'key?pfx': `::${team}` })
+  await Promise.all(
+    projects.map(({ key }) => deta.Base('projects').delete(key))
+  )
+
+  //delete team
+  await deta.Base('teams').delete(team)
+
+  // update users
+  const { items: users } = await deta
+    .Base('users')
+    .fetch([{ 'teams?contains': team }, { 'admins?contains': team }])
+
+  const detaUsers = deta.Base('users')
+  // TODO: make this "transactional"
+  // TODO: unify with other user updates e.g. ./user.update
+  await Promise.all(
+    users.map(
+      async ({ key, email, teams, admins }) =>
+        await Promise.all([
+          detaUsers.update(
+            {
+              teams: detaUsers.util.remove(team),
+              admins: detaUsers.util.remove(team),
+            },
+            key
+          ),
+          USERS.put(
+            email,
+            JSON.stringify({
+              ...user,
+              teams: teams.filter((o) => o === team),
+              admins: admins.filter((o) => o === team),
+            })
+          ),
+        ])
+    )
+  )
+
+  return team
 }

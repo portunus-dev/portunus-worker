@@ -13,7 +13,13 @@ const {
   createStage,
   getKVEnvs,
 } = require('./modules/envs')
-const { createTeam, listTeams, getTeam } = require('./modules/teams')
+const {
+  createTeam,
+  listTeams,
+  getTeam,
+  updateTeamName,
+  deleteTeam,
+} = require('./modules/teams')
 
 const { parseJWT } = require('./modules/auth')
 const deta = require('./modules/db')
@@ -110,7 +116,24 @@ module.exports.updateTeamName = async ({ user, content: { team, name } }) => {
     if (!user.admins.includes(team)) {
       throw new HTTPError('Invalid access: team admin required', 403)
     }
-    const key = await updateTeamName({ team, name })
+    await updateTeamName({ team, name })
+    return respondJSON({ payload: { key: team } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.deleteTeam = async ({ user, content: { team } }) => {
+  try {
+    if (!team) {
+      throw new HTTPError('Invalid team: team not supplied', 400)
+    }
+
+    if (!user.admins.includes(team)) {
+      throw new HTTPError('Invalid access: team admin required', 403)
+    }
+
+    const key = await deleteTeam({ user, team })
     return respondJSON({ payload: { key } })
   } catch (err) {
     return respondError(err)
