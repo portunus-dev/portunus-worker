@@ -50,37 +50,13 @@ module.exports.updateTeamName = ({ team, name }) => {
 
 // TODO: this should be transactional?
 // TODO: update it with deleteStage, deleteProject, removeUserFromTeam functions
-module.exports.deleteTeam = async ({ team }) => {
-  // delete stages and KV
-  let stages = []
-  try {
-    ;({ items: stages } = await deta
-      .Base('stages')
-      .fetch({ 'key?pfx': `${team}::` }, { limit: 1000, last: 0 }))
-  } catch (e) {
-    console.warn('Deta fetch failed')
-  }
-
-  await Promise.all(
-    stages.map(
-      async ({ key }) =>
-        await Promise.all([deta.Base('stages').delete(key), KV.delete(key)])
-    )
-  )
-
+module.exports.deleteTeam = async (team) => {
   // delete projects
   let projects = []
   try {
-    ;({ items: projects } = await deta
-      .Base('projects')
-      .fetch({ 'key?pfx': `${team}::` }, {}))
-  } catch (e) {
-    console.warn('Deta fetch failed')
-  }
-
-  await Promise.all(
-    projects.map(({ key }) => deta.Base('projects').delete(key))
-  )
+    ;({ items: projects } = await deta.Base('projects').fetch({ team }))
+  } catch (e) {}
+  await Promise.all(projects.map(({ key }) => deleteProject(key)))
 
   //delete team
   await deta.Base('teams').delete(team)

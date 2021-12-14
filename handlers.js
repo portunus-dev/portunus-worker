@@ -28,9 +28,9 @@ const {
   createProject,
   listProjects,
   // getProject,
-  // updateProjectName,
-  // deleteProject,
-} = require('./modules/teams')
+  updateProjectName,
+  deleteProject,
+} = require('./modules/projects')
 
 const { parseJWT } = require('./modules/auth')
 const deta = require('./modules/db')
@@ -179,6 +179,45 @@ module.exports.createProject = async ({ content: { team, name }, user }) => {
     const payload = await createProject({ team, project: name })
 
     return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.updateProjectName = async ({
+  user,
+  content: { project, name },
+}) => {
+  try {
+    if (!project) {
+      throw new HTTPError('Invalid project: project not supplied', 400)
+    }
+
+    const team = project.split('::')[0]
+
+    if (!user.admins.includes(team)) {
+      throw new HTTPError('Invalid access: team admin required', 403)
+    }
+    await updateProjectName({ team, name })
+    return respondJSON({ payload: { key: team } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.deleteProject = async ({ user, content: { project } }) => {
+  try {
+    if (!project) {
+      throw new HTTPError('Invalid project: project not supplied', 400)
+    }
+
+    const team = project.split('::')[0]
+    if (!user.admins.includes(team)) {
+      throw new HTTPError('Invalid access: team admin required', 403)
+    }
+
+    const key = await deleteProject(project)
+    return respondJSON({ payload: { key } })
   } catch (err) {
     return respondError(err)
   }

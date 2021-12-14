@@ -77,7 +77,7 @@ router.put(
   withRequireUser,
   createProject
 )
-// router.put('/project/update', updateProject)
+router.put('/project/update', updateProject)
 // router.delete('/project/delete', deleteProject)
 
 router.get('/stages', withRequireUser, listStages)

@@ -14,4 +14,30 @@ module.exports.createProject = ({ team, project }) =>
     updated: new Date(),
   })
 
-module.exports.updateProject = deta.Base('projects').put // stub for now
+module.exports.updateProjectName = ({ project, name }) => {
+  deta.Base('projects').update(
+    {
+      name,
+    },
+    project
+  )
+}
+
+module.exports.deleteProject = async ({ project }) => {
+  // delete stages and KV
+  let stages = []
+  try {
+    ;({ items: stages } = await deta.Base('stages').fetch({ project }))
+  } catch (e) {}
+
+  await Promise.all(
+    stages.map(
+      async ({ key }) =>
+        await Promise.all([deta.Base('stages').delete(key), KV.delete(key)])
+    )
+  )
+
+  await deta.Base('projects').delete(project)
+
+  return project
+}
