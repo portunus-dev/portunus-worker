@@ -24,6 +24,13 @@ const {
   updateTeamName,
   deleteTeam,
 } = require('./modules/teams')
+const {
+  createProject,
+  listProjects,
+  // getProject,
+  // updateProjectName,
+  // deleteProject,
+} = require('./modules/teams')
 
 const { parseJWT } = require('./modules/auth')
 const deta = require('./modules/db')
@@ -146,19 +153,13 @@ module.exports.deleteTeam = async ({ user, content: { team } }) => {
   }
 }
 
-module.exports.listProjects = async ({ url, user }) => {
+module.exports.listProjects = async ({ query, user }) => {
   try {
-    // verify user team access
-    const { searchParams } = new URL(url)
-    const {
-      team = user.teams[0],
-      limit,
-      last,
-    } = extractParams(searchParams)('team')
+    const { team = user.teams[0], limit, last } = query
     if (team && !user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
-    const payload = await deta.Base('projects').fetch({ team }, { limit, last })
+    const payload = listProjects({ team, limit, last })
     return respondJSON({ payload })
   } catch (err) {
     return respondError(err)
