@@ -4,7 +4,7 @@
   "description": "package for creating workers templates",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "format": "prettier --write '**/*.{js,css,jsone,md}'",
     "lint": "eslint *.js modules/*.js",
     "dev": "env $(print-env) npx wrangler dev"
@@ -14,6 +14,7 @@
   "devDependencies": {
     "@cloudflare/wrangler": "^1.19.5",
     "eslint": "^8.5.0",
+    "jest": "^27.4.5",
     "prettier": "^2.2.1"
   },
   "dependencies": {

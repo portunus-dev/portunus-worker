@@ -1,6 +1,4 @@
 const deta = require('./db')
-const { getKVEnvs } = require('./envs')
-const { update } = require('./users')
 
 /*
   TEAM
@@ -15,6 +13,7 @@ module.exports.createTeam = async ({ name, user }) => {
   const { key: team } = await deta.Base('teams').put({ name })
   // update user in both deta Base and Cloudflare KV
   const users = deta.Base('users')
+
   // TODO: make this "transactional"
   // TODO: unify with other user updates e.g. ./user.update
   await Promise.all([
@@ -67,7 +66,7 @@ module.exports.deleteTeam = async ({ team }) => {
   // delete stages and KV
   const { items: stages } = await deta
     .Base('stages')
-    .fetch({ 'key?pfx': `::${team}` })
+    .fetch({ 'key?pfx': `${team}::` })
 
   await Promise.all(
     stages.map(
@@ -79,7 +78,8 @@ module.exports.deleteTeam = async ({ team }) => {
   // delete projects
   const { items: projects } = await deta
     .Base('projects')
-    .fetch({ 'key?pfx': `::${team}` })
+    .fetch({ 'key?pfx': `${team}::` })
+
   await Promise.all(
     projects.map(({ key }) => deta.Base('projects').delete(key))
   )
@@ -97,21 +97,21 @@ module.exports.deleteTeam = async ({ team }) => {
   // TODO: unify with other user updates e.g. ./user.update
   await Promise.all(
     users.map(
-      async ({ key, email, teams, admins }) =>
+      async (user) =>
         await Promise.all([
           detaUsers.update(
             {
-              teams: detaUsers.util.remove(team),
-              admins: detaUsers.util.remove(team),
+              teams: user.teams.filter((o) => o === team),
+              admins: user.admins.filter((o) => o === team),
             },
-            key
+            user.key
           ),
           USERS.put(
-            email,
+            user.email,
             JSON.stringify({
               ...user,
-              teams: teams.filter((o) => o === team),
-              admins: admins.filter((o) => o === team),
+              teams: user.teams.filter((o) => o === team),
+              admins: user.admins.filter((o) => o === team),
             })
           ),
         ])

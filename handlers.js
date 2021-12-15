@@ -7,12 +7,7 @@ const {
   respondJSON,
 } = require('./modules/utils')
 const { getKVUser } = require('./modules/users')
-const {
-  createTeam,
-  createProject,
-  createStage,
-  getKVEnvs,
-} = require('./modules/envs')
+const { createProject, createStage, getKVEnvs } = require('./modules/envs')
 const {
   createTeam,
   listTeams,
