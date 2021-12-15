@@ -32,22 +32,40 @@ describe('Teams Module', () => {
     const teamId = await createTeam({ name, user })
 
     expect(teamId).not.toBeNull()
+<<<<<<< HEAD
     expect(deta.updateMock).toBeCalledTimes(2)
     expect(global.USERS.put).toBeCalledTimes(2)
     expect(USER_STORE[user.email]).not.toBeNull()
   })
   test('listTeams pulls team/admin info and flattens', async () => {
     const user = { teams: ['test-key', 'test-key2'], admins: ['test-key'] }
+=======
+    expect(deta.updateMock).toBeCalledTimes(1)
+    expect(global.USERS.put).toBeCalledTimes(1)
+    expect(USER_STORE[user.email]).not.toBeNull()
+  })
+  test('listTeams pulls team/admin info and flattens', async () => {
+    const user = { teams: ['test-key'], admins: ['test-key2'] }
+>>>>>>> Teams - add test for teams module
 
     const teams = await listTeams({ user })
 
     expect(teams.length).toEqual(2)
+<<<<<<< HEAD
     expect(teams[1].admin).toEqual(true)
     expect(teams[1].key).toEqual('test-key')
     expect(teams[1].name).toEqual('test-team')
     expect(teams[0].admin).toEqual(false)
     expect(teams[0].key).toEqual('test-key2')
     expect(teams[0].name).toEqual('test-team2')
+=======
+    expect(teams[0].admin).toEqual(false)
+    expect(teams[0].key).toEqual('test-key')
+    expect(teams[0].name).toEqual('test-team')
+    expect(teams[1].admin).toEqual(true)
+    expect(teams[1].key).toEqual('test-key2')
+    expect(teams[1].name).toEqual('test-team2')
+>>>>>>> Teams - add test for teams module
     expect(deta.getMock).toBeCalledTimes(2)
   })
   test('getTeams returns value from DB', async () => {
@@ -97,7 +115,10 @@ describe('Teams Module', () => {
     expect(deta.TEST_DB.users[user.key].admins.length).toEqual(1)
     expect(USER_STORE[user.email].teams.length).toEqual(1)
     expect(USER_STORE[user.email].admins.length).toEqual(1)
+<<<<<<< HEAD
     expect(USER_STORE[user.email].teams[0]).toEqual('someTeam')
     expect(USER_STORE[user.email].admins[0]).toEqual('someTeam')
+=======
+>>>>>>> Teams - add test for teams module
   })
 })
