@@ -41,15 +41,15 @@ router.post(
   createTeam
 )
 
+router.delete('/team', withContent, withRequireUser, deleteTeam)
+
 router.put(
-  '/team/update',
+  '/team',
   withContent,
   withRequiredName('team'),
   withRequireUser,
   updateTeamName
 )
-
-router.delete('/team/delete', withRequireUser, deleteTeam)
 
 router.get('/users', withRequireUser, listUsers)
 router.get('/user', withRequireUser, ({ user }) =>

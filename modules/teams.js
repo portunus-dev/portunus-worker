@@ -36,7 +36,7 @@ module.exports.createTeam = async ({ name, user }) => {
 module.exports.listTeams = async ({ user }) =>
   await Promise.all([
     ...user.teams
-      .filter((o) => user.admins.indexOf(o) < 0)
+      .filter((o) => !user.admins.includes(o))
       .map((key) =>
         deta
           .Base('teams')
@@ -66,9 +66,12 @@ module.exports.updateTeamName = ({ team, name }) => {
 // TODO: update it with deleteStage, deleteProject, removeUserFromTeam functions
 module.exports.deleteTeam = async ({ team }) => {
   // delete stages and KV
-  const { items: stages } = await deta
-    .Base('stages')
-    .fetch({ 'key?pfx': `${team}::` })
+  let stages = []
+  try {
+    ;({ items: stages } = await deta
+      .Base('stages')
+      .fetch({ 'key?pfx': `${team}::` }, { limit: 1000, last: 0 }))
+  } catch (e) {}
 
   await Promise.all(
     stages.map(
@@ -78,9 +81,12 @@ module.exports.deleteTeam = async ({ team }) => {
   )
 
   // delete projects
-  const { items: projects } = await deta
-    .Base('projects')
-    .fetch({ 'key?pfx': `${team}::` })
+  let projects = []
+  try {
+    ;({ items: projects } = await deta
+      .Base('projects')
+      .fetch({ 'key?pfx': `${team}::` }, {}))
+  } catch (e) {}
 
   await Promise.all(
     projects.map(({ key }) => deta.Base('projects').delete(key))
@@ -90,9 +96,12 @@ module.exports.deleteTeam = async ({ team }) => {
   await deta.Base('teams').delete(team)
 
   // update users
-  const { items: users } = await deta
-    .Base('users')
-    .fetch([{ 'teams?contains': team }, { 'admins?contains': team }])
+  let users = []
+  try {
+    ;({ items: users } = await deta
+      .Base('users')
+      .fetch([{ 'teams?contains': team }, { 'admins?contains': team }], {}))
+  } catch (e) {}
 
   const detaUsers = deta.Base('users')
   // TODO: make this "transactional"
@@ -103,8 +112,8 @@ module.exports.deleteTeam = async ({ team }) => {
         await Promise.all([
           detaUsers.update(
             {
-              teams: user.teams.filter((o) => o === team),
-              admins: user.admins.filter((o) => o === team),
+              teams: user.teams.filter((o) => o !== team),
+              admins: user.admins.filter((o) => o !== team),
             },
             user.key
           ),
@@ -112,8 +121,8 @@ module.exports.deleteTeam = async ({ team }) => {
             user.email,
             JSON.stringify({
               ...user,
-              teams: user.teams.filter((o) => o === team),
-              admins: user.admins.filter((o) => o === team),
+              teams: user.teams.filter((o) => o !== team),
+              admins: user.admins.filter((o) => o !== team),
             })
           ),
         ])

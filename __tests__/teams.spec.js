@@ -97,5 +97,7 @@ describe('Teams Module', () => {
     expect(deta.TEST_DB.users[user.key].admins.length).toEqual(1)
     expect(USER_STORE[user.email].teams.length).toEqual(1)
     expect(USER_STORE[user.email].admins.length).toEqual(1)
+    expect(USER_STORE[user.email].teams[0]).toEqual('someTeam')
+    expect(USER_STORE[user.email].admins[0]).toEqual('someTeam')
   })
 })

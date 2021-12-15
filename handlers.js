@@ -128,8 +128,7 @@ module.exports.deleteTeam = async ({ user, content: { team } }) => {
     if (!user.admins.includes(team)) {
       throw new HTTPError('Invalid access: team admin required', 403)
     }
-
-    await deleteTeam({ user, team })
+    await deleteTeam({ team })
     return respondJSON({ payload: { key: team } })
   } catch (err) {
     return respondError(err)
