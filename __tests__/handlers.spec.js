@@ -72,4 +72,46 @@ describe('Handlers!', () => {
     expect(body.stages[0]).toEqual(stage1)
     expect(body.stages[1]).toEqual(stage2)
   })
+  test('updateTeamName - should require team', async () => {
+    const response = await updateTeamName({ user: {}, content: {} })
+    expect(response.status).toEqual(400)
+  })
+  test('updateTeamName - should require team admin', async () => {
+    const team = 'test'
+    const response = await updateTeamName({
+      user: { admins: [] },
+      content: { team },
+    })
+    expect(response.status).toEqual(403)
+  })
+  test('updateTeamName - should require team admin', async () => {
+    const team = 'test'
+    const response = await updateTeamName({
+      user: { admins: [team] },
+      content: { team },
+    })
+    expect(response.getBody().key).toEqual(team)
+    expect(response.status).toEqual(200)
+  })
+  test('deleteTeam - should require team', async () => {
+    const response = await deleteTeam({ user: {}, content: {} })
+    expect(response.status).toEqual(400)
+  })
+  test('deleteTeam - should require team admin', async () => {
+    const team = 'test'
+    const response = await deleteTeam({
+      user: { admins: [] },
+      content: { team },
+    })
+    expect(response.status).toEqual(403)
+  })
+  test('deleteTeam - should require team admin', async () => {
+    const team = 'test'
+    const response = await deleteTeam({
+      user: { admins: [team] },
+      content: { team },
+    })
+    expect(response.getBody().key).toEqual(team)
+    expect(response.status).toEqual(200)
+  })
 })
