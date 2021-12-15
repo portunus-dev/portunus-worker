@@ -53,7 +53,8 @@ module.exports.root = ({ cf }) =>
 // UI handlers
 module.exports.listAll = async ({ user }) => {
   try {
-    const teams = await Promise.all(user.teams.map((key) => getTeam(key)))
+    const teams = await Promise.all(user.teams.map(getTeam))
+
     const teamProjects = await Promise.all(
       teams.map((t) =>
         deta
@@ -86,7 +87,7 @@ module.exports.listAll = async ({ user }) => {
 
 module.exports.listTeams = async ({ user }) => {
   try {
-    const teams = listTeams({ user })
+    const teams = await listTeams({ user })
     return respondJSON({ payload: { teams } })
   } catch (err) {
     return respondError(err)

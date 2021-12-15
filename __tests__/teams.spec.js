@@ -37,17 +37,17 @@ describe('Teams Module', () => {
     expect(USER_STORE[user.email]).not.toBeNull()
   })
   test('listTeams pulls team/admin info and flattens', async () => {
-    const user = { teams: ['test-key'], admins: ['test-key2'] }
+    const user = { teams: ['test-key', 'test-key2'], admins: ['test-key'] }
 
     const teams = await listTeams({ user })
 
     expect(teams.length).toEqual(2)
-    expect(teams[0].admin).toEqual(false)
-    expect(teams[0].key).toEqual('test-key')
-    expect(teams[0].name).toEqual('test-team')
     expect(teams[1].admin).toEqual(true)
-    expect(teams[1].key).toEqual('test-key2')
-    expect(teams[1].name).toEqual('test-team2')
+    expect(teams[1].key).toEqual('test-key')
+    expect(teams[1].name).toEqual('test-team')
+    expect(teams[0].admin).toEqual(false)
+    expect(teams[0].key).toEqual('test-key2')
+    expect(teams[0].name).toEqual('test-team2')
     expect(deta.getMock).toBeCalledTimes(2)
   })
   test('getTeams returns value from DB', async () => {

@@ -35,12 +35,14 @@ module.exports.createTeam = async ({ name, user }) => {
 
 module.exports.listTeams = async ({ user }) =>
   await Promise.all([
-    ...user.teams.map((key) =>
-      deta
-        .Base('teams')
-        .get(key)
-        .then((p) => ({ ...p, admin: false }))
-    ),
+    ...user.teams
+      .filter((o) => user.admins.indexOf(o) < 0)
+      .map((key) =>
+        deta
+          .Base('teams')
+          .get(key)
+          .then((p) => ({ ...p, admin: false }))
+      ),
     ...user.admins.map((key) =>
       deta
         .Base('teams')
@@ -49,7 +51,7 @@ module.exports.listTeams = async ({ user }) =>
     ),
   ])
 
-module.exports.getTeam = deta.Base('teams').get
+module.exports.getTeam = (key) => deta.Base('teams').get(key)
 
 module.exports.updateTeamName = ({ team, name }) => {
   deta.Base('teams').update(
