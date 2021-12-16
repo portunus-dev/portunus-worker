@@ -14,6 +14,7 @@ const {
   removeUserFromTeam,
   addUserToAdmin,
   removeUserFromAdmin,
+  deleteUser,
 } = require('./modules/users')
 const { createProject, createStage, getKVEnvs } = require('./modules/envs')
 const {
@@ -268,7 +269,7 @@ module.exports.addUserToTeam = async ({
       throw new HTTPError('Invalid access: team admin required', 403)
     }
 
-    const kvUser = await USERS.get(userEmail)
+    const kvUser = await USERS.get(userEmail, { type: 'json' })
 
     if (!kvUser) {
       throw new HTTPError('Invalid user: user not found', 400)
@@ -299,7 +300,7 @@ module.exports.removeUserFromTeam = async ({
       throw new HTTPError('Invalid access: team admin required', 403)
     }
 
-    const kvUser = USERS.get(userEmail)
+    const kvUser = await USERS.get(userEmail, { type: 'json' })
 
     if (!kvUser) {
       throw new HTTPError('Invalid user: user not found', 400)
@@ -330,7 +331,7 @@ module.exports.addUserToAdmin = async ({
       throw new HTTPError('Invalid access: team admin required', 403)
     }
 
-    const kvUser = await USERS.get(userEmail)
+    const kvUser = await USERS.get(userEmail, { type: 'json' })
 
     if (!kvUser) {
       throw new HTTPError('Invalid user: user not found', 400)
@@ -361,7 +362,7 @@ module.exports.removeUserFromAdmin = async ({
       throw new HTTPError('Invalid access: team admin required', 403)
     }
 
-    const kvUser = USERS.get(userEmail)
+    const kvUser = await USERS.get(userEmail, { type: 'json' })
 
     if (!kvUser) {
       throw new HTTPError('Invalid user: user not found', 400)
@@ -414,9 +415,10 @@ module.exports.getToken = async ({ url }) => {
     teams: [defaultTeam],
   } = (await getKVUser(user)) || {}
 
-  if (!jwt_uuid) {
-    return respondError(new HTTPError(`${user} not found`, 404))
-  }
+  // TODO: where do we generate jwt_uuid initially and how do we update it?
+  // if (!jwt_uuid) {
+  //   return respondError(new HTTPError(`${user} not found`, 404))
+  // }
 
   const token = jwt.sign(
     { email, jwt_uuid, team: team || defaultTeam },
