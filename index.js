@@ -94,7 +94,7 @@ router.get('/stages', withRequireUser, listStages)
 router.post(
   '/stage',
   withContent,
-  withRequireUser('stage'),
+  withRequiredName('stage'),
   withRequireUser,
   createStage
 )

@@ -231,7 +231,7 @@ module.exports.deleteProject = async ({ user, content: { project } }) => {
 
 module.exports.listStages = async ({ query, user }) => {
   try {
-    const { team, project, limit, last } = query
+    const { team, project } = query
     if (!team || !project) {
       throw new HTTPError('Invalid request: team or project not supplied', 400)
     }
@@ -239,9 +239,9 @@ module.exports.listStages = async ({ query, user }) => {
     if (!user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
-    const payload = await deta
-      .Base('stages')
-      .fetch({ team, project }, { limit, last })
+
+    const payload = await listStages({ team, project })
+
     return respondJSON({ payload })
   } catch (err) {
     return respondError(err)
@@ -261,6 +261,7 @@ module.exports.createStage = async ({
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
 
+    console.log('---> create stage', project, team, name)
     const payload = await createStage({ team, project, stage: name })
 
     return respondJSON({ payload })

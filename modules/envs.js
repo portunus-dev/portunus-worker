@@ -5,7 +5,15 @@ module.exports.getStage = ({ team, project, stage = 'dev' }) =>
 
 // deta.Base fetch({ project }, { limit, last })
 // where `project` field is `team::project`
-module.exports.listStages = deta.Base('stages').fetch
+module.exports.listStages = async ({ team, project }) => {
+  let stages = []
+  try {
+    ;({ items: stages } = await deta
+      .Base('stages')
+      .fetch({ project: `${team}::${project}` }, {}))
+  } catch (e) {}
+  return { stages }
+}
 
 module.exports.createStage = ({ team, project, stage }) =>
   deta.Base('stages').put({
