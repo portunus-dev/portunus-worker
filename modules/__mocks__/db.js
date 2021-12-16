@@ -75,6 +75,7 @@ const updateMock = jest.fn(async (updates, key, db) => {
   if (!key) throw new Error('No key for Deta Update')
   // NOTE: this mutates the base DB
   // TODO: is there a way to easily get persisted updates without the mutation? i.e. can I clear it per test
+  // TODO: it doesn't enforce existing entry
   TEST_DB[db] = {
     ...TEST_DB[db],
     [key]: {

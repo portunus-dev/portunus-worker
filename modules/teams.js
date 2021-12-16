@@ -50,7 +50,7 @@ module.exports.updateTeamName = ({ team, name }) => {
 
 // TODO: this should be transactional?
 // TODO: update it with deleteStage, deleteProject, removeUserFromTeam functions
-module.exports.deleteTeam = async (team) => {
+module.exports.deleteTeam = async ({ team }) => {
   // delete projects
   let projects = []
   try {

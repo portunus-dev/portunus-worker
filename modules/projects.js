@@ -17,7 +17,7 @@ module.exports.createProject = ({ team, project }) =>
 module.exports.updateProjectName = ({ project, name }) => {
   deta.Base('projects').update(
     {
-      name,
+      project: name,
     },
     project
   )

@@ -6,6 +6,7 @@ const {
   respondError,
   respondJSON,
 } = require('./modules/utils')
+<<<<<<< HEAD
 const {
   getKVUser,
   listTeamUsers,
@@ -17,6 +18,10 @@ const {
   deleteUser,
 } = require('./modules/users')
 const { createProject, createStage, getKVEnvs } = require('./modules/envs')
+=======
+const { getKVUser } = require('./modules/users')
+const { createStage, getKVEnvs } = require('./modules/envs')
+>>>>>>> Projects - project module and handler tests
 const {
   createTeam,
   listTeams,
@@ -198,8 +203,8 @@ module.exports.updateProjectName = async ({
     if (!user.admins.includes(team)) {
       throw new HTTPError('Invalid access: team admin required', 403)
     }
-    await updateProjectName({ team, name })
-    return respondJSON({ payload: { key: team } })
+    await updateProjectName({ project, name })
+    return respondJSON({ payload: { key: project } })
   } catch (err) {
     return respondError(err)
   }
@@ -216,8 +221,8 @@ module.exports.deleteProject = async ({ user, content: { project } }) => {
       throw new HTTPError('Invalid access: team admin required', 403)
     }
 
-    const key = await deleteProject(project)
-    return respondJSON({ payload: { key } })
+    await deleteProject(project)
+    return respondJSON({ payload: { key: project } })
   } catch (err) {
     return respondError(err)
   }
