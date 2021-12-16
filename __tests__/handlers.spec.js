@@ -4,6 +4,9 @@ const deta = require('../modules/db')
 jest.mock('../modules/teams')
 const teamModule = require('../modules/teams')
 
+jest.mock('../modules/users')
+const userModule = require('../modules/users')
+
 const ResponseTest = require('../ResponseTest')
 
 const {
@@ -12,6 +15,13 @@ const {
   createTeam,
   updateTeamName,
   deleteTeam,
+  listUsers,
+  createUser,
+  addUserToTeam,
+  removeUserFromTeam,
+  addUserToAdmin,
+  removeUserFromAdmin,
+  deleteUser,
 } = require('../handlers')
 
 beforeAll(() => {
@@ -113,6 +123,214 @@ describe('Handlers!', () => {
         content: { team },
       })
       expect(response.getBody().key).toEqual(team)
+      expect(response.status).toEqual(200)
+    })
+  })
+  describe('Users', () => {
+    test('listUsers - should require team', async () => {
+      const response = await listUsers({ user: { teams: [] }, query: {} })
+      expect(response.status).toEqual(400)
+    })
+    test('listUsers - should require team access', async () => {
+      const team = 'test'
+      const response = await listUsers({ user: { teams: [] }, query: { team } })
+      expect(response.status).toEqual(403)
+    })
+    test('listUsers - should respond 200', async () => {
+      const team = 'test'
+      const response = await listUsers({
+        user: { teams: [team] },
+        query: { team },
+      })
+      expect(response.status).toEqual(200)
+    })
+    test('createUser - should require email', async () => {
+      const response = await createUser({
+        content: {},
+      })
+      expect(response.status).toEqual(400)
+    })
+    test('createUser - should require valid email', async () => {
+      const email = 'test'
+      const response = await createUser({
+        content: { email },
+      })
+      expect(response.status).toEqual(400)
+    })
+    test('createUser - should respond 200', async () => {
+      const email = 'test@test.com'
+      userModule.createUser.mockResolvedValue({ key: 'test' })
+      const response = await createUser({
+        content: { email },
+      })
+      expect(response.status).toEqual(200)
+    })
+    test('addUserToTeam - should require team', async () => {
+      const response = await addUserToTeam({
+        content: {},
+      })
+
+      expect(response.status).toEqual(400)
+    })
+    test('addUserToTeam - should require email', async () => {
+      const team = 'newTeam'
+      const user = {
+        admins: [],
+      }
+
+      const response = await addUserToTeam({
+        content: { team },
+        user,
+      })
+
+      expect(response.status).toEqual(400)
+    })
+    test('addUserToTeam - should require valid email', async () => {
+      const userEmail = 'test'
+      const team = 'newTeam'
+      const user = {
+        admins: [],
+      }
+
+      const response = await addUserToTeam({
+        content: { userEmail, team },
+        user,
+      })
+
+      expect(response.status).toEqual(400)
+    })
+    test('addUserToTeam - should require admin access', async () => {
+      const userEmail = 'test@test.com'
+      const team = 'newTeam'
+      const user = {
+        admins: [],
+      }
+
+      const response = await addUserToTeam({
+        content: { userEmail, team },
+        user,
+      })
+
+      expect(response.status).toEqual(403)
+    })
+    test('addUserToTeam - should require valid USERS entry', async () => {
+      const userEmail = 'test@test.com'
+      const team = 'newTeam'
+      const user = {
+        admins: [team],
+      }
+
+      global.USERS = { get: jest.fn(() => false) }
+
+      const response = await addUserToTeam({
+        content: { userEmail, team },
+        user,
+      })
+
+      expect(response.status).toEqual(400)
+    })
+    test('addUserToTeam - should respond 200', async () => {
+      const userEmail = 'test@test.com'
+      const team = 'newTeam'
+      const user = {
+        admins: [team],
+      }
+      const userToAdd = {
+        key: 'test-key',
+        email: userEmail,
+      }
+
+      global.USERS = { get: jest.fn(() => userToAdd) }
+
+      const response = await addUserToTeam({
+        content: { userEmail, team },
+        user,
+      })
+
+      expect(response.status).toEqual(200)
+    })
+    test('removeUserFromTeam - should require team', async () => {
+      const response = await removeUserFromTeam({
+        content: {},
+      })
+
+      expect(response.status).toEqual(400)
+    })
+    test('removeUserFromTeam - should require email', async () => {
+      const team = 'newTeam'
+      const user = {
+        admins: [],
+      }
+
+      const response = await removeUserFromTeam({
+        content: { team },
+        user,
+      })
+
+      expect(response.status).toEqual(400)
+    })
+    test('removeUserFromTeam - should require valid email', async () => {
+      const userEmail = 'test'
+      const team = 'newTeam'
+      const user = {
+        admins: [],
+      }
+
+      const response = await removeUserFromTeam({
+        content: { userEmail, team },
+        user,
+      })
+
+      expect(response.status).toEqual(400)
+    })
+    test('removeUserFromTeam - should require admin access', async () => {
+      const userEmail = 'test@test.com'
+      const team = 'newTeam'
+      const user = {
+        admins: [],
+      }
+
+      const response = await removeUserFromTeam({
+        content: { userEmail, team },
+        user,
+      })
+
+      expect(response.status).toEqual(403)
+    })
+    test('removeUserFromTeam - should require valid USERS entry', async () => {
+      const userEmail = 'test@test.com'
+      const team = 'newTeam'
+      const user = {
+        admins: [team],
+      }
+
+      global.USERS = { get: jest.fn(() => false) }
+
+      const response = await removeUserFromTeam({
+        content: { userEmail, team },
+        user,
+      })
+
+      expect(response.status).toEqual(400)
+    })
+    test('removeUserFromTeam - should respond 200', async () => {
+      const userEmail = 'test@test.com'
+      const team = 'newTeam'
+      const user = {
+        admins: [team],
+      }
+      const userToAdd = {
+        key: 'test-key',
+        email: userEmail,
+      }
+
+      global.USERS = { get: jest.fn(() => userToAdd) }
+
+      const response = await removeUserFromTeam({
+        content: { userEmail, team },
+        user,
+      })
+
       expect(response.status).toEqual(200)
     })
   })

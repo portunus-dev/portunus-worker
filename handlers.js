@@ -6,7 +6,15 @@ const {
   respondError,
   respondJSON,
 } = require('./modules/utils')
-const { getKVUser, listTeamUsers, createUser } = require('./modules/users')
+const {
+  getKVUser,
+  listTeamUsers,
+  createUser,
+  addUserToTeam,
+  removeUserFromTeam,
+  addUserToAdmin,
+  removeUserFromAdmin,
+} = require('./modules/users')
 const { createProject, createStage, getKVEnvs } = require('./modules/envs')
 const {
   createTeam,
@@ -217,8 +225,10 @@ module.exports.createStage = async ({
 module.exports.listUsers = async ({ query, user }) => {
   try {
     const { team = user.teams[0], limit, last } = query
-
-    if (team && !user.teams.includes(team)) {
+    if (!team) {
+      throw new HTTPError('Invalid request: team not supplied', 400)
+    }
+    if (!user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
     const payload = await listTeamUsers({ team, limit, last })
@@ -229,10 +239,10 @@ module.exports.listUsers = async ({ query, user }) => {
 }
 
 module.exports.createUser = async ({ content: { email } }) => {
-  if (!email || !EMAIL_REGEXP.test(email)) {
-    throw new HTTPError('valid email is required', 400)
-  }
   try {
+    if (!email || !EMAIL_REGEXP.test(email)) {
+      throw new HTTPError('valid email is required', 400)
+    }
     const { key } = await createUser(email)
 
     return respondJSON({ payload: { key } })
@@ -250,7 +260,7 @@ module.exports.addUserToTeam = async ({
       throw new HTTPError('Invalid team: team not supplied', 400)
     }
 
-    if (!userEmail && !EMAIL_REGEXP.test(userEmail)) {
+    if (!userEmail || !EMAIL_REGEXP.test(userEmail)) {
       throw new HTTPError('Invalid user: a valid email is required', 400)
     }
 
@@ -258,7 +268,7 @@ module.exports.addUserToTeam = async ({
       throw new HTTPError('Invalid access: team admin required', 403)
     }
 
-    const kvUser = USERS.get(userEmail)
+    const kvUser = await USERS.get(userEmail)
 
     if (!kvUser) {
       throw new HTTPError('Invalid user: user not found', 400)
@@ -281,7 +291,7 @@ module.exports.removeUserFromTeam = async ({
       throw new HTTPError('Invalid team: team not supplied', 400)
     }
 
-    if (!userEmail && !EMAIL_REGEXP.test(userEmail)) {
+    if (!userEmail || !EMAIL_REGEXP.test(userEmail)) {
       throw new HTTPError('Invalid user: a valid email is required', 400)
     }
 
