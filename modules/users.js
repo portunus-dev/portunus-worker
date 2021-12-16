@@ -4,15 +4,12 @@ const deta = require('./db')
 module.exports.get = (email) =>
   deta.Base('users').fetch({ email }, { limit: 1 })
 
-module.exports.listTeamUsers = ({ team, limit, last }) =>
+module.exports.listTeamUsers = ({ team }) =>
   deta
     .Base('users')
-    .fetch([{ 'teams?contains': team }, { 'admins?contains': team }], {
-      limit,
-      last,
-    })
+    .fetch([{ 'teams?contains': team }, { 'admins?contains': team }], {})
 
-module.exports.createUser = (email) => {
+module.exports.createUser = async (email) => {
   const user = {
     email,
     teams: [],
@@ -21,7 +18,7 @@ module.exports.createUser = (email) => {
 
   // TODO: do this "transactionally"
   const dbUser = await deta.Base('users').insert(user)
-  await = USERS.put(user.email, JSON.stringify(dbUser))
+  await USERS.put(user.email, JSON.stringify(dbUser))
 
   return dbUser
 }
@@ -38,7 +35,7 @@ module.exports.update = (user) => {
 }
 
 // TODO: this should not allow duplicate teams
-module.exports.addUserToTeam = ({ user, team }) => {
+module.exports.addUserToTeam = async ({ user, team }) => {
   // update user in both deta Base and Cloudflare KV
   const users = deta.Base('users')
   // TODO: make this "transactional"
@@ -55,11 +52,12 @@ module.exports.addUserToTeam = ({ user, team }) => {
   ])
 }
 
-module.exports.removeUserFromTeam = ({ user, team }) => {
+module.exports.removeUserFromTeam = async ({ user, team }) => {
   // update user in both deta Base and Cloudflare KV
 
   const teams = user.teams.filter((o) => o !== team)
   const admins = user.admins.filter((o) => o !== team)
+  const users = deta.Base('users')
 
   // TODO: make this "transactional"
   // TODO: unify with other user updates e.g. ./user.update
@@ -77,7 +75,7 @@ module.exports.removeUserFromTeam = ({ user, team }) => {
 }
 
 // TODO: this should not allow duplicate teams
-module.exports.addUserToAdmin = ({ user, team }) => {
+module.exports.addUserToAdmin = async ({ user, team }) => {
   // update user in both deta Base and Cloudflare KV
   const users = deta.Base('users')
   // TODO: make this "transactional"
@@ -94,10 +92,11 @@ module.exports.addUserToAdmin = ({ user, team }) => {
   ])
 }
 
-module.exports.removeUserFromAdmin = ({ user, team }) => {
+module.exports.removeUserFromAdmin = async ({ user, team }) => {
   // update user in both deta Base and Cloudflare KV
 
   const admins = user.admins.filter((o) => o !== team)
+  const users = deta.Base('users')
 
   // TODO: make this "transactional"
   // TODO: unify with other user updates e.g. ./user.update
@@ -116,6 +115,9 @@ module.exports.removeUserFromAdmin = ({ user, team }) => {
 module.exports.deleteUser = (user) => {
   if (!user.key) {
     throw new Error('user.key is required')
+  }
+  if (!user.email) {
+    throw new Error('user.email is required')
   }
 
   // TODO: what if they're the only user for a team? Should delete it!
