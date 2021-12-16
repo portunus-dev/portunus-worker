@@ -11,7 +11,9 @@ module.exports.listStages = async ({ team, project }) => {
     ;({ items: stages } = await deta
       .Base('stages')
       .fetch({ project: `${team}::${project}` }, {}))
-  } catch (e) {}
+  } catch (e) {
+    console.warn('Deta fetch error')
+  }
   return { stages }
 }
 

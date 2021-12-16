@@ -16,7 +16,13 @@ const {
   removeUserFromAdmin,
   deleteUser,
 } = require('./modules/users')
-const { createStage, getKVEnvs } = require('./modules/envs')
+const {
+  createStage,
+  listStages,
+  deleteStage,
+  updateStageVars,
+  getKVEnvs,
+} = require('./modules/envs')
 const {
   createTeam,
   listTeams,
@@ -261,7 +267,6 @@ module.exports.createStage = async ({
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
 
-    console.log('---> create stage', project, team, name)
     const payload = await createStage({ team, project, stage: name })
 
     return respondJSON({ payload })
@@ -276,7 +281,8 @@ module.exports.deleteStage = async ({ content: { stage }, user }) => {
       throw new HTTPError('Invalid request: stage not supplied', 400)
     }
 
-    if (!user.teams.includes(team)) {
+    const team = stage.split('::')[0]
+    if (!user.admins.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
 
@@ -311,7 +317,7 @@ module.exports.updateStageVars = async ({
   }
 }
 
-module.exports.listUsers = async ({ url, user }) => {
+module.exports.listUsers = async ({ query, user }) => {
   try {
     const { team = user.teams[0], limit, last } = query
     if (!team) {
