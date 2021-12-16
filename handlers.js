@@ -313,6 +313,68 @@ module.exports.removeUserFromTeam = async ({
   }
 }
 
+module.exports.addUserToAdmin = async ({
+  content: { userEmail, team },
+  user,
+}) => {
+  try {
+    if (!team) {
+      throw new HTTPError('Invalid team: team not supplied', 400)
+    }
+
+    if (!userEmail || !EMAIL_REGEXP.test(userEmail)) {
+      throw new HTTPError('Invalid user: a valid email is required', 400)
+    }
+
+    if (!user.admins.includes(team)) {
+      throw new HTTPError('Invalid access: team admin required', 403)
+    }
+
+    const kvUser = await USERS.get(userEmail)
+
+    if (!kvUser) {
+      throw new HTTPError('Invalid user: user not found', 400)
+    }
+
+    await addUserToAdmin({ team, user: kvUser })
+
+    return respondJSON({ payload: { key: kvUser.key } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.removeUserFromAdmin = async ({
+  content: { userEmail, team },
+  user,
+}) => {
+  try {
+    if (!team) {
+      throw new HTTPError('Invalid team: team not supplied', 400)
+    }
+
+    if (!userEmail || !EMAIL_REGEXP.test(userEmail)) {
+      throw new HTTPError('Invalid user: a valid email is required', 400)
+    }
+
+    if (!user.admins.includes(team)) {
+      throw new HTTPError('Invalid access: team admin required', 403)
+    }
+
+    const kvUser = USERS.get(userEmail)
+
+    if (!kvUser) {
+      throw new HTTPError('Invalid user: user not found', 400)
+    }
+
+    await removeUserFromAdmin({ team, user: kvUser })
+
+    return respondJSON({ payload: { key: kvUser.key } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
 module.exports.deleteUser = async ({ user }) => {
   try {
     await deleteUser(user)
