@@ -14,6 +14,7 @@ const {
   listStages,
   createStage,
   updateStageVars,
+  deleteStage,
   listUsers,
   createUser,
   deleteUser,
@@ -98,11 +99,11 @@ router.post(
   withRequireUser,
   createStage
 )
-// router.delete('/stage/delete', deleteStage)
+router.delete('/stage', withContent, withRequireUser, deleteStage)
 
 // TODO: env vs vars
-router.get('/env', getEnv)
-router.put('/env', updateStageVars)
+router.get('/env', withRequireUser, getEnv)
+router.put('/env', withContent, withRequireUser, updateStageVars)
 
 // router.get('/vars', listVars)
 // router.get('/var', getVar)

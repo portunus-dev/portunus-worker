@@ -38,7 +38,6 @@ const {
   deleteProject,
 } = require('./modules/projects')
 
-const { parseJWT } = require('./modules/auth')
 const deta = require('./modules/db')
 
 const EMAIL_REGEXP = new RegExp(/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/)
@@ -481,16 +480,30 @@ module.exports.deleteUser = async ({ user }) => {
 }
 
 // also shared for UI
-module.exports.getEnv = async ({ url, headers }) => {
+module.exports.getEnv = async ({ user, query }) => {
   try {
-    const parsed = await parseJWT({ url, headers })
-    const vars = (await getKVEnvs(parsed)) || {}
+    const { team, project: p, stage } = query
+
+    if (!team || !p || !stage) {
+      throw new HTTPError(
+        'Invalid request: team or project or stage not supplied',
+        400
+      )
+    }
+
+    if (!user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+
+    const vars = (await getKVEnvs({ team, p, stage })) || {}
     return respondJSON({
       payload: {
         vars,
         encrypted: false,
-        ...parsed,
-        project: parsed.p, // TODO: perhaps stick with `p` for frontend read use-cases
+        user,
+        team,
+        project: p, // TODO: perhaps stick with `p` for frontend read use-cases
+        stage,
       },
     })
   } catch (err) {

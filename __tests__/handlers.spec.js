@@ -31,6 +31,7 @@ const {
   createStage,
   deleteStage,
   updateStageVars,
+  getEnv,
 } = require('../handlers')
 
 beforeAll(() => {
@@ -687,6 +688,42 @@ describe('Handlers!', () => {
       const response = await updateStageVars({
         user: { teams: ['test'] },
         content: { stage },
+      })
+      expect(response.status).toEqual(200)
+    })
+    test('getEnv - should require team', async () => {
+      const response = await getEnv({ user: {}, query: {} })
+      expect(response.status).toEqual(400)
+    })
+    test('getEnv - should require project', async () => {
+      const team = 'test'
+      const response = await getEnv({ user: {}, query: { team } })
+      expect(response.status).toEqual(400)
+    })
+    test('getEnv - should require stage', async () => {
+      const team = 'test'
+      const project = 'test'
+      const response = await getEnv({ user: {}, query: { team, project } })
+      expect(response.status).toEqual(400)
+    })
+    test('getEnv - should require team access', async () => {
+      const team = 'test'
+      const project = 'test'
+      const stage = 'test'
+      const response = await getEnv({
+        user: { teams: [] },
+        query: { team, project, stage },
+      })
+      expect(response.status).toEqual(403)
+    })
+    test('getEnv - should respond 200', async () => {
+      const team = 'test'
+      const project = 'test'
+      const stage = 'test'
+
+      const response = await getEnv({
+        user: { teams: [team] },
+        query: { team, project, stage },
       })
       expect(response.status).toEqual(200)
     })
