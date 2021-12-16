@@ -102,7 +102,7 @@ router.post(
 
 // TODO: env vs vars
 router.get('/env', getEnv)
-router.put('/env/update', updateStageVars)
+router.put('/env', updateStageVars)
 
 // router.get('/vars', listVars)
 // router.get('/var', getVar)

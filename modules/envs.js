@@ -17,7 +17,7 @@ module.exports.createStage = ({ team, project, stage }) =>
     vars: 0,
   })
 
-modules.exports.deleteStage = (stage) =>
+module.exports.deleteStage = (stage) =>
   Promise.all([deta.Base('stages').delete(stage), KV.delete(stage)])
 
 module.exports.updateStageVars = async ({ stage, updates }) => {
@@ -34,9 +34,9 @@ module.exports.updateStageVars = async ({ stage, updates }) => {
   let kvVars = await KV.get(key, { type: 'json' }) // update vars with each action
   let changes = 0
   Object.entries(updates).forEach(([action, items]) => {
-    changes += items.length
+    changes += Object.keys(items).length
     if (action === 'add') {
-      vars += items.length
+      vars += Object.keys(items).length
       kvVars = { ...kvVars, ...items }
     } else if (action === 'remove') {
       vars -= items.length
