@@ -1,5 +1,6 @@
 const deta = require('./db')
 const { addUserToTeam, removeUserFromTeam, addUserToAdmin } = require('./users')
+const { deleteProject } = require('./projects')
 
 /*
   TEAM
@@ -55,7 +56,9 @@ module.exports.deleteTeam = async ({ team }) => {
   let projects = []
   try {
     ;({ items: projects } = await deta.Base('projects').fetch({ team }))
-  } catch (e) {}
+  } catch (e) {
+    console.warn('Deta fetch error')
+  }
   await Promise.all(projects.map(({ key }) => deleteProject(key)))
 
   //delete team

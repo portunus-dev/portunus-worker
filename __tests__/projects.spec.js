@@ -55,14 +55,22 @@ describe('Projects Module', () => {
     const KV_STORE = { 'test-key::test-key::test-key': true }
     global.KV = { delete: jest.fn((key) => delete KV_STORE[key]) }
 
+    const DETA = {
+      [project.key]: true,
+    }
+    deta.deleteMock
+      .mockResolvedValueOnce(true)
+      .mockImplementationOnce((project) => delete DETA[project])
     deta.fetchMock
       .mockResolvedValueOnce({ items: [stage] })
       .mockResolvedValueOnce({ items: [project] })
 
-    await deleteProject({ project: project.key })
+    const key = await deleteProject({ project: project.key })
 
     expect(deta.fetchMock).toBeCalledTimes(1)
     expect(deta.deleteMock).toBeCalledTimes(2)
     expect(KV_STORE[stage.key]).toBeUndefined()
+    expect(key).toEqual(project.key)
+    expect(DETA[project.key]).toBeUndefined()
   })
 })

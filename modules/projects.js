@@ -3,8 +3,8 @@ const deta = require('./db')
 module.exports.getProject = ({ team, project }) =>
   deta.Base('projects').get(`${team}::${project}`)
 
-module.exports.listProjects = ({ team, limit, last }) =>
-  deta.Base('projects').fetch({ team }, { limit, last })
+module.exports.listProjects = ({ team }) =>
+  deta.Base('projects').fetch({ team }, {})
 
 module.exports.createProject = ({ team, project }) =>
   deta.Base('projects').put({
@@ -28,7 +28,9 @@ module.exports.deleteProject = async ({ project }) => {
   let stages = []
   try {
     ;({ items: stages } = await deta.Base('stages').fetch({ project }))
-  } catch (e) {}
+  } catch (e) {
+    console.warn('Deta fetch error')
+  }
 
   await Promise.all(
     stages.map(

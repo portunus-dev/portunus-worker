@@ -6,7 +6,6 @@ const {
   respondError,
   respondJSON,
 } = require('./modules/utils')
-<<<<<<< HEAD
 const {
   getKVUser,
   listTeamUsers,
@@ -17,11 +16,7 @@ const {
   removeUserFromAdmin,
   deleteUser,
 } = require('./modules/users')
-const { createProject, createStage, getKVEnvs } = require('./modules/envs')
-=======
-const { getKVUser } = require('./modules/users')
 const { createStage, getKVEnvs } = require('./modules/envs')
->>>>>>> Projects - project module and handler tests
 const {
   createTeam,
   listTeams,
@@ -160,12 +155,18 @@ module.exports.deleteTeam = async ({ user, content: { team } }) => {
 
 module.exports.listProjects = async ({ query, user }) => {
   try {
-    const { team = user.teams[0], limit, last } = query
+    const { team = user.teams[0] } = query
     if (team && !user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
-    const payload = listProjects({ team, limit, last })
-    return respondJSON({ payload })
+    let projects = []
+    try {
+      ;({ items: projects } = await listProjects({ team }))
+    } catch (e) {
+      console.warn('Deta fetch error')
+    }
+
+    return respondJSON({ payload: { projects } })
   } catch (err) {
     return respondError(err)
   }
@@ -221,7 +222,7 @@ module.exports.deleteProject = async ({ user, content: { project } }) => {
       throw new HTTPError('Invalid access: team admin required', 403)
     }
 
-    await deleteProject(project)
+    await deleteProject({ project })
     return respondJSON({ payload: { key: project } })
   } catch (err) {
     return respondError(err)
