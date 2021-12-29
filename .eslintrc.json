@@ -6,7 +6,7 @@
     },
     "extends": "eslint:recommended",
     "parserOptions": {
-        "ecmaVersion": 12
+        "ecmaVersion": "latest" // "es2022 for class fields etc."
     },
     "globals": {
         "MAIL_PASS": "readonly",
@@ -17,5 +17,6 @@
         "KV": "readonly"
     },
     "rules": {
+        "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }]
     }
 }

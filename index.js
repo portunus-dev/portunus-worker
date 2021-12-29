@@ -1,4 +1,4 @@
-import { Router } from 'itty-router'
+const { Router } = require('itty-router')
 const {
   root,
   getUser,
