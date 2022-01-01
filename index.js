@@ -1,17 +1,23 @@
-const { Router } = require('itty-router')
-const { withContent } = require('itty-router-extras')
+import { Router } from 'itty-router'
+import { withContent } from 'itty-router-extras'
 
 const {
   root,
   listTeams,
   createTeam,
-  updateTeamName,
   deleteTeam,
+  updateTeamName,
   listProjects,
   createProject,
   listStages,
   createStage,
   listUsers,
+  createUser,
+  deleteUser,
+  addUserToTeam,
+  removeUserFromTeam,
+  addUserToAdmin,
+  removeUserFromAdmin,
   listAll,
   getToken,
   getEnv,
@@ -55,12 +61,12 @@ router.get('/users', withRequireUser, listUsers)
 router.get('/user', withRequireUser, ({ user }) =>
   respondJSON({ payload: { user } })
 )
-// router.post('/user/create', createUser)
-// router.put('/user/team', addUserToTeam)
-// router.put('/user/admin', addUserToAdmin)
-// router.delete('/user/team', removeUserFromTeam)
-// router.delete('/user/admin', removeUserFromAdmin)
-// router.post('/user/delete', deleteUser)
+router.post('/user', withContent, createUser)
+router.put('/user/team', withContent, withRequireUser, addUserToTeam)
+router.delete('/user/team', withContent, withRequireUser, removeUserFromTeam)
+router.put('/user/admin', withContent, withRequireUser, addUserToAdmin)
+router.delete('/user/admin', withContent, withRequireUser, removeUserFromAdmin)
+router.delete('/user', withRequireUser, deleteUser)
 
 router.get('/projects', withRequireUser, listProjects)
 // router.get('/project', getProject)

@@ -1,4 +1,5 @@
 const deta = require('./db')
+const { addUserToTeam, removeUserFromTeam, addUserToAdmin } = require('./users')
 
 /*
   TEAM
@@ -11,25 +12,10 @@ const deta = require('./db')
 module.exports.createTeam = async ({ name, user }) => {
   // create team metadata in deta Base
   const { key: team } = await deta.Base('teams').put({ name })
-  // update user in both deta Base and Cloudflare KV
-  const users = deta.Base('users')
 
-  // TODO: make this "transactional"
-  // TODO: unify with other user updates e.g. ./user.update
-  await Promise.all([
-    users.update(
-      { teams: users.util.append(team), admins: users.util.append(team) },
-      user.key
-    ),
-    USERS.put(
-      user.email,
-      JSON.stringify({
-        ...user,
-        teams: [...user.teams, team],
-        admins: [...user.admins, team],
-      })
-    ),
-  ])
+  await addUserToTeam({ user, team })
+  await addUserToAdmin({ user, team })
+
   return team
 }
 
@@ -109,31 +95,7 @@ module.exports.deleteTeam = async ({ team }) => {
     console.warn('Deta fetch failed')
   }
 
-  const detaUsers = deta.Base('users')
-  // TODO: make this "transactional"
-  // TODO: unify with other user updates e.g. ./user.update
-  await Promise.all(
-    users.map(
-      async (user) =>
-        await Promise.all([
-          detaUsers.update(
-            {
-              teams: user.teams.filter((o) => o !== team),
-              admins: user.admins.filter((o) => o !== team),
-            },
-            user.key
-          ),
-          USERS.put(
-            user.email,
-            JSON.stringify({
-              ...user,
-              teams: user.teams.filter((o) => o !== team),
-              admins: user.admins.filter((o) => o !== team),
-            })
-          ),
-        ])
-    )
-  )
+  await Promise.all(users.map((user) => removeUserFromTeam({ user, team })))
 
   return team
 }

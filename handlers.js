@@ -6,7 +6,16 @@ const {
   respondError,
   respondJSON,
 } = require('./modules/utils')
-const { getKVUser } = require('./modules/users')
+const {
+  getKVUser,
+  listTeamUsers,
+  createUser,
+  addUserToTeam,
+  removeUserFromTeam,
+  addUserToAdmin,
+  removeUserFromAdmin,
+  deleteUser,
+} = require('./modules/users')
 const { createProject, createStage, getKVEnvs } = require('./modules/envs')
 const {
   createTeam,
@@ -18,6 +27,8 @@ const {
 
 const { parseJWT } = require('./modules/auth')
 const deta = require('./modules/db')
+
+const EMAIL_REGEXP = new RegExp(/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/)
 
 // process.env is not avail in workers, direct access like KV namespaces and secrets
 
@@ -184,7 +195,7 @@ module.exports.listStages = async ({ query, user }) => {
     }
     const payload = await deta
       .Base('stages')
-      .fetch({ project: `${team}::${project}` }, { limit, last })
+      .fetch({ team, project }, { limit, last })
     return respondJSON({ payload })
   } catch (err) {
     return respondError(err)
@@ -212,25 +223,164 @@ module.exports.createStage = async ({
   }
 }
 
-module.exports.listUsers = async ({ url, user }) => {
+module.exports.listUsers = async ({ query, user }) => {
   try {
-    // verify user team access
-    const { searchParams } = new URL(url)
-    const {
-      team = user.teams[0],
-      limit,
-      last,
-    } = extractParams(searchParams)('team', 'limit', 'last')
-    if (team && !user.teams.includes(team)) {
+    const { team = user.teams[0], limit, last } = query
+    if (!team) {
+      throw new HTTPError('Invalid request: team not supplied', 400)
+    }
+    if (!user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
-    const payload = await deta
-      .Base('users')
-      .fetch([{ 'teams?contains': team }, { 'admins?contains': team }], {
-        limit,
-        last,
-      })
+    const payload = await listTeamUsers({ team, limit, last })
     return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.createUser = async ({ content: { email } }) => {
+  try {
+    if (!email || !EMAIL_REGEXP.test(email)) {
+      throw new HTTPError('valid email is required', 400)
+    }
+    const { key } = await createUser(email)
+
+    return respondJSON({ payload: { key } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.addUserToTeam = async ({
+  content: { userEmail, team },
+  user,
+}) => {
+  try {
+    if (!team) {
+      throw new HTTPError('Invalid team: team not supplied', 400)
+    }
+
+    if (!userEmail || !EMAIL_REGEXP.test(userEmail)) {
+      throw new HTTPError('Invalid user: a valid email is required', 400)
+    }
+
+    if (!user.admins.includes(team)) {
+      throw new HTTPError('Invalid access: team admin required', 403)
+    }
+
+    const kvUser = await USERS.get(userEmail, { type: 'json' })
+
+    if (!kvUser) {
+      throw new HTTPError('Invalid user: user not found', 400)
+    }
+
+    await addUserToTeam({ team, user: kvUser })
+
+    return respondJSON({ payload: { key: kvUser.key } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.removeUserFromTeam = async ({
+  content: { userEmail, team },
+  user,
+}) => {
+  try {
+    if (!team) {
+      throw new HTTPError('Invalid team: team not supplied', 400)
+    }
+
+    if (!userEmail || !EMAIL_REGEXP.test(userEmail)) {
+      throw new HTTPError('Invalid user: a valid email is required', 400)
+    }
+
+    if (!user.admins.includes(team)) {
+      throw new HTTPError('Invalid access: team admin required', 403)
+    }
+
+    const kvUser = await USERS.get(userEmail, { type: 'json' })
+
+    if (!kvUser) {
+      throw new HTTPError('Invalid user: user not found', 400)
+    }
+
+    await removeUserFromTeam({ team, user: kvUser })
+
+    return respondJSON({ payload: { key: kvUser.key } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.addUserToAdmin = async ({
+  content: { userEmail, team },
+  user,
+}) => {
+  try {
+    if (!team) {
+      throw new HTTPError('Invalid team: team not supplied', 400)
+    }
+
+    if (!userEmail || !EMAIL_REGEXP.test(userEmail)) {
+      throw new HTTPError('Invalid user: a valid email is required', 400)
+    }
+
+    if (!user.admins.includes(team)) {
+      throw new HTTPError('Invalid access: team admin required', 403)
+    }
+
+    const kvUser = await USERS.get(userEmail, { type: 'json' })
+
+    if (!kvUser) {
+      throw new HTTPError('Invalid user: user not found', 400)
+    }
+
+    await addUserToAdmin({ team, user: kvUser })
+
+    return respondJSON({ payload: { key: kvUser.key } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.removeUserFromAdmin = async ({
+  content: { userEmail, team },
+  user,
+}) => {
+  try {
+    if (!team) {
+      throw new HTTPError('Invalid team: team not supplied', 400)
+    }
+
+    if (!userEmail || !EMAIL_REGEXP.test(userEmail)) {
+      throw new HTTPError('Invalid user: a valid email is required', 400)
+    }
+
+    if (!user.admins.includes(team)) {
+      throw new HTTPError('Invalid access: team admin required', 403)
+    }
+
+    const kvUser = await USERS.get(userEmail, { type: 'json' })
+
+    if (!kvUser) {
+      throw new HTTPError('Invalid user: user not found', 400)
+    }
+
+    await removeUserFromAdmin({ team, user: kvUser })
+
+    return respondJSON({ payload: { key: kvUser.key } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.deleteUser = async ({ user }) => {
+  try {
+    await deleteUser(user)
+
+    return respondJSON({ payload: { key: user.key } })
   } catch (err) {
     return respondError(err)
   }
@@ -265,9 +415,10 @@ module.exports.getToken = async ({ url }) => {
     teams: [defaultTeam],
   } = (await getKVUser(user)) || {}
 
-  if (!jwt_uuid) {
-    return respondError(new HTTPError(`${user} not found`, 404))
-  }
+  // TODO: where do we generate jwt_uuid initially and how do we update it?
+  // if (!jwt_uuid) {
+  //   return respondError(new HTTPError(`${user} not found`, 404))
+  // }
 
   const token = jwt.sign(
     { email, jwt_uuid, team: team || defaultTeam },

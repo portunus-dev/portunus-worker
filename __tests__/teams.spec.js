@@ -32,8 +32,8 @@ describe('Teams Module', () => {
     const teamId = await createTeam({ name, user })
 
     expect(teamId).not.toBeNull()
-    expect(deta.updateMock).toBeCalledTimes(1)
-    expect(global.USERS.put).toBeCalledTimes(1)
+    expect(deta.updateMock).toBeCalledTimes(2)
+    expect(global.USERS.put).toBeCalledTimes(2)
     expect(USER_STORE[user.email]).not.toBeNull()
   })
   test('listTeams pulls team/admin info and flattens', async () => {

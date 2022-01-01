@@ -59,6 +59,13 @@ const TEST_DB = {
 
 const getMock = jest.fn(async (key, db) => await TEST_DB[db][key])
 const fetchMock = jest.fn()
+const insertMock = jest.fn(async (entry, db) => {
+  const key = entry.key || Date.now().toString().substring(0, 12)
+  if (TEST_DB[db][key]) throw new Error('Deta insert - key already exists')
+  const value = { ...entry, key }
+  TEST_DB[db][key] = value
+  return value
+})
 const putMock = jest.fn(async (updates, key, db) => {
   const finalKey = key || Date.now().toString().substring(0, 12)
   return { key: finalKey }
@@ -80,6 +87,7 @@ const updateMock = jest.fn(async (updates, key, db) => {
 const deleteMock = jest.fn()
 
 const mockedDbApi = jest.fn((db) => ({
+  insert: (entry) => insertMock(entry, db),
   get: (key) => getMock(key, db),
   fetch: (query) => fetchMock(query, db),
   put: (updates, key) => putMock(updates, key, db),
@@ -92,6 +100,7 @@ deta.Base.mockImplementation(mockedDbApi)
 
 module.exports = deta
 module.exports.TEST_DB = TEST_DB
+module.exports.insertMock = insertMock
 module.exports.getMock = getMock
 module.exports.fetchMock = fetchMock
 module.exports.putMock = putMock
