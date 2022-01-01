@@ -33,6 +33,7 @@ module.exports.verifyUser = async (access) => {
   return user
 }
 
+// TODO: remove? Do we need parseProj for compatibility?
 module.exports.parseJWT = async ({ url, headers }) => {
   const access = this.verifyJWT(headers)
   const user = await this.verifyUser(access)

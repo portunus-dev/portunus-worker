@@ -94,7 +94,7 @@ const mockedDbApi = jest.fn((db) => ({
   put: (updates, key) => putMock(updates, key, db),
   update: (updates, key) => updateMock(updates, key, db),
   delete: (key) => deleteMock(key, db),
-  util: { append: jest.fn() },
+  util: { append: jest.fn(), increment: jest.fn() },
 }))
 
 deta.Base.mockImplementation(mockedDbApi)

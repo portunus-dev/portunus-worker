@@ -16,7 +16,13 @@ const {
   removeUserFromAdmin,
   deleteUser,
 } = require('./modules/users')
-const { createStage, getKVEnvs } = require('./modules/envs')
+const {
+  createStage,
+  listStages,
+  deleteStage,
+  updateStageVars,
+  getKVEnvs,
+} = require('./modules/envs')
 const {
   createTeam,
   listTeams,
@@ -32,7 +38,6 @@ const {
   deleteProject,
 } = require('./modules/projects')
 
-const { parseJWT } = require('./modules/auth')
 const deta = require('./modules/db')
 
 const EMAIL_REGEXP = new RegExp(/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/)
@@ -231,7 +236,7 @@ module.exports.deleteProject = async ({ user, content: { project } }) => {
 
 module.exports.listStages = async ({ query, user }) => {
   try {
-    const { team, project, limit, last } = query
+    const { team, project } = query
     if (!team || !project) {
       throw new HTTPError('Invalid request: team or project not supplied', 400)
     }
@@ -239,9 +244,9 @@ module.exports.listStages = async ({ query, user }) => {
     if (!user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
-    const payload = await deta
-      .Base('stages')
-      .fetch({ team, project }, { limit, last })
+
+    const payload = await listStages({ team, project })
+
     return respondJSON({ payload })
   } catch (err) {
     return respondError(err)
@@ -264,6 +269,48 @@ module.exports.createStage = async ({
     const payload = await createStage({ team, project, stage: name })
 
     return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.deleteStage = async ({ content: { stage }, user }) => {
+  try {
+    if (!stage) {
+      throw new HTTPError('Invalid request: stage not supplied', 400)
+    }
+
+    const team = stage.split('::')[0]
+    if (!user.admins.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+
+    await deleteStage(stage)
+
+    return respondJSON({ payload: { key: stage } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.updateStageVars = async ({
+  content: { stage, updates },
+  user,
+}) => {
+  try {
+    if (!stage) {
+      throw new HTTPError('Invalid request: stage not supplied', 400)
+    }
+
+    const team = stage.split('::')[0] // {team}::{project}::{stage}
+
+    if (!user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+
+    const changes = await updateStageVars({ stage, updates })
+
+    return respondJSON({ payload: { key: stage, updates: changes } })
   } catch (err) {
     return respondError(err)
   }
@@ -433,16 +480,30 @@ module.exports.deleteUser = async ({ user }) => {
 }
 
 // also shared for UI
-module.exports.getEnv = async ({ url, headers }) => {
+module.exports.getEnv = async ({ user, query }) => {
   try {
-    const parsed = await parseJWT({ url, headers })
-    const vars = (await getKVEnvs(parsed)) || {}
+    const { team, project: p, stage } = query
+
+    if (!team || !p || !stage) {
+      throw new HTTPError(
+        'Invalid request: team or project or stage not supplied',
+        400
+      )
+    }
+
+    if (!user.teams.includes(team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    }
+
+    const vars = (await getKVEnvs({ team, p, stage })) || {}
     return respondJSON({
       payload: {
         vars,
         encrypted: false,
-        ...parsed,
-        project: parsed.p, // TODO: perhaps stick with `p` for frontend read use-cases
+        user,
+        team,
+        project: p, // TODO: perhaps stick with `p` for frontend read use-cases
+        stage,
       },
     })
   } catch (err) {

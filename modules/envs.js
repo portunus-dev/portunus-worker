@@ -5,7 +5,17 @@ module.exports.getStage = ({ team, project, stage = 'dev' }) =>
 
 // deta.Base fetch({ project }, { limit, last })
 // where `project` field is `team::project`
-module.exports.listStages = deta.Base('stages').fetch
+module.exports.listStages = async ({ team, project }) => {
+  let stages = []
+  try {
+    ;({ items: stages } = await deta
+      .Base('stages')
+      .fetch({ project: `${team}::${project}` }, {}))
+  } catch (e) {
+    console.warn('Deta fetch error')
+  }
+  return { stages }
+}
 
 module.exports.createStage = ({ team, project, stage }) =>
   deta.Base('stages').put({
@@ -14,39 +24,29 @@ module.exports.createStage = ({ team, project, stage }) =>
     stage,
     key: `${team}::${project}::${stage}`,
     updated: new Date(),
+    vars: 0,
   })
 
-module.exports.createStageVars = ({ team, project, stage, vars }) => {
+module.exports.deleteStage = (stage) =>
+  Promise.all([deta.Base('stages').delete(stage), KV.delete(stage)])
+
+module.exports.updateStageVars = async ({ stage, updates }) => {
   const updated = new Date()
-  const key = `${team}::${project}::${stage}`
-  // TODO: make this "transactional"
-  return Promise.all([
-    deta.Base('stages').put({
-      project: `${team}::${project}`,
-      stage,
-      key,
-      vars: vars.length, // deta Base only stores the count
-      updated,
-    }),
-    // Cloudflare KV stores actual env vars of the stage
-    KV.put(key, JSON.stringify(vars), { metadata: { updated } }),
-  ])
-}
-module.exports.updateStageVars = async ({ team, project, stage, updates }) => {
-  const updated = new Date()
-  const key = `${team}::${project}::${stage}`
+  const key = stage
+
   // updates = vars update actions
   // can be add, remove, or edit
   // { add: { key: value, ... }, remove: [key], edit: { key: value, ... } }
+
   // TODO: need to validate whether there are colliding keys in the updates
-  // compute deta.Base('stages).utils.increment value for `vars` field
-  const actions = []
-  let vars = 0
-  // update Cloudflare KV with updates
-  let kvVars = await KV.get(key, { type: 'json' })
+  //    -> results will just be based on order of actions
+  let vars = 0 // compute deta.Base('stages).utils.increment value for `vars` field
+  let kvVars = await KV.get(key, { type: 'json' }) // update vars with each action
+  let changes = 0
   Object.entries(updates).forEach(([action, items]) => {
+    changes += Object.keys(items).length
     if (action === 'add') {
-      vars += items.length
+      vars += Object.keys(items).length
       kvVars = { ...kvVars, ...items }
     } else if (action === 'remove') {
       vars -= items.length
@@ -57,6 +57,9 @@ module.exports.updateStageVars = async ({ team, project, stage, updates }) => {
       kvVars = { ...kvVars, ...items }
     }
   })
+
+  const actions = []
+
   if (vars !== 0) {
     const stages = deta.Base('stages')
     actions.push(
@@ -64,7 +67,9 @@ module.exports.updateStageVars = async ({ team, project, stage, updates }) => {
     )
   }
   actions.push(KV.put(key, JSON.stringify(kvVars), { metadata: { updated } }))
-  return Promise.all(actions)
+  await Promise.all(actions)
+
+  return changes
 }
 
 // Cloudflare KV - KV, for CLI use

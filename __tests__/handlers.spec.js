@@ -7,6 +7,8 @@ jest.mock('../modules/users')
 const userModule = require('../modules/users')
 jest.mock('../modules/projects')
 const projectModule = require('../modules/projects')
+jest.mock('../modules/envs')
+const envModule = require('../modules/envs')
 
 const ResponseTest = require('../ResponseTest')
 
@@ -25,6 +27,11 @@ const {
   createProject,
   updateProjectName,
   deleteProject,
+  listStages,
+  createStage,
+  deleteStage,
+  updateStageVars,
+  getEnv,
 } = require('../handlers')
 
 beforeAll(() => {
@@ -585,6 +592,139 @@ describe('Handlers!', () => {
         content: { project },
       })
       expect(response.getBody().key).toEqual(project)
+    })
+  })
+  describe('Stages', () => {
+    test('listStages - should require team', async () => {
+      const response = await listStages({ user: {}, query: {} })
+      expect(response.status).toEqual(400)
+    })
+    test('listStages - should require project', async () => {
+      const team = 'test'
+      const response = await listStages({ user: {}, query: { team } })
+      expect(response.status).toEqual(400)
+    })
+    test('listStages - should require team access', async () => {
+      const team = 'test'
+      const project = 'test'
+      const response = await listStages({
+        user: { teams: [] },
+        query: { team, project },
+      })
+      expect(response.status).toEqual(403)
+    })
+    test('listStages - should respond 200', async () => {
+      const team = 'test'
+      const project = 'test'
+      const response = await listStages({
+        user: { teams: [team] },
+        query: { team, project },
+      })
+      expect(response.status).toEqual(200)
+    })
+    test('createStage - should require team', async () => {
+      const response = await createStage({ user: {}, content: {} })
+      expect(response.status).toEqual(400)
+    })
+    test('createStage - should require project', async () => {
+      const team = 'test'
+      const response = await createStage({ user: {}, content: { team } })
+      expect(response.status).toEqual(400)
+    })
+    test('createStage - should require team access', async () => {
+      const team = 'test'
+      const project = 'test'
+      const response = await createStage({
+        user: { teams: [] },
+        content: { team, project },
+      })
+      expect(response.status).toEqual(403)
+    })
+    test('createStage - should respond 200', async () => {
+      const team = 'test'
+      const project = 'test'
+      const response = await createStage({
+        user: { teams: [team] },
+        content: { team, project },
+      })
+      expect(response.status).toEqual(200)
+    })
+    test('deleteStage - should require stage', async () => {
+      const response = await deleteStage({ user: {}, content: {} })
+      expect(response.status).toEqual(400)
+    })
+    test('deleteStage - should require admin access', async () => {
+      const stage = 'test::test::test'
+      const response = await deleteStage({
+        user: { admins: [] },
+        content: { stage },
+      })
+      expect(response.status).toEqual(403)
+    })
+    test('deleteStage - should respond 200', async () => {
+      const stage = 'test::test::test'
+
+      const response = await deleteStage({
+        user: { admins: ['test'] },
+        content: { stage },
+      })
+      expect(response.status).toEqual(200)
+    })
+    test('updateStageVars - should require stage', async () => {
+      const response = await updateStageVars({ user: {}, content: {} })
+      expect(response.status).toEqual(400)
+    })
+    test('updateStageVars - should require team access', async () => {
+      const stage = 'test::test::test'
+      const response = await updateStageVars({
+        user: { teams: [] },
+        content: { stage },
+      })
+      expect(response.status).toEqual(403)
+    })
+    test('updateStageVars - should respond 200', async () => {
+      const stage = 'test::test::test'
+
+      const response = await updateStageVars({
+        user: { teams: ['test'] },
+        content: { stage },
+      })
+      expect(response.status).toEqual(200)
+    })
+    test('getEnv - should require team', async () => {
+      const response = await getEnv({ user: {}, query: {} })
+      expect(response.status).toEqual(400)
+    })
+    test('getEnv - should require project', async () => {
+      const team = 'test'
+      const response = await getEnv({ user: {}, query: { team } })
+      expect(response.status).toEqual(400)
+    })
+    test('getEnv - should require stage', async () => {
+      const team = 'test'
+      const project = 'test'
+      const response = await getEnv({ user: {}, query: { team, project } })
+      expect(response.status).toEqual(400)
+    })
+    test('getEnv - should require team access', async () => {
+      const team = 'test'
+      const project = 'test'
+      const stage = 'test'
+      const response = await getEnv({
+        user: { teams: [] },
+        query: { team, project, stage },
+      })
+      expect(response.status).toEqual(403)
+    })
+    test('getEnv - should respond 200', async () => {
+      const team = 'test'
+      const project = 'test'
+      const stage = 'test'
+
+      const response = await getEnv({
+        user: { teams: [team] },
+        query: { team, project, stage },
+      })
       expect(response.status).toEqual(200)
     })
   })
