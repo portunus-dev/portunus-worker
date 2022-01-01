@@ -3,16 +3,15 @@ const deta = require('../modules/db')
 
 jest.mock('../modules/teams')
 const teamModule = require('../modules/teams')
-
 jest.mock('../modules/users')
 const userModule = require('../modules/users')
+jest.mock('../modules/projects')
+const projectModule = require('../modules/projects')
 
 const ResponseTest = require('../ResponseTest')
 
 const {
   listAll,
-  listTeams,
-  createTeam,
   updateTeamName,
   deleteTeam,
   listUsers,
@@ -22,6 +21,10 @@ const {
   addUserToAdmin,
   removeUserFromAdmin,
   deleteUser,
+  listProjects,
+  createProject,
+  updateProjectName,
+  deleteProject,
 } = require('../handlers')
 
 beforeAll(() => {
@@ -95,7 +98,7 @@ describe('Handlers!', () => {
       })
       expect(response.status).toEqual(403)
     })
-    test('updateTeamName - should require team admin', async () => {
+    test('updateTeamName - should return 200 response', async () => {
       const team = 'test'
       const response = await updateTeamName({
         user: { admins: [team] },
@@ -116,7 +119,7 @@ describe('Handlers!', () => {
       })
       expect(response.status).toEqual(403)
     })
-    test('deleteTeam - should require team admin', async () => {
+    test('deleteTeam - should return 200 response', async () => {
       const team = 'test'
       const response = await deleteTeam({
         user: { admins: [team] },
@@ -498,7 +501,90 @@ describe('Handlers!', () => {
         content: { userEmail, team },
         user,
       })
+    })
+  })
 
+  describe('Project', () => {
+    test('listProjects - should require team access', async () => {
+      const team = 'test'
+      const response = await listProjects({
+        query: { team },
+        user: { teams: ['another'] },
+      })
+      expect(response.status).toEqual(403)
+    })
+    test('listProjects - should default to user.teams[0]', async () => {
+      const response = await listProjects({
+        query: {},
+        user: { teams: ['test'] },
+      })
+      expect(response.status).toEqual(200)
+    })
+    test('createProject - should require team', async () => {
+      const response = await createProject({ user: {}, content: {} })
+      expect(response.status).toEqual(400)
+    })
+    test('createProject - should require team access', async () => {
+      const team = 'test'
+      const response = await createProject({
+        user: { teams: [], admins: [] },
+        content: { team },
+      })
+      expect(response.status).toEqual(403)
+    })
+    test('createProject - should return 200 response', async () => {
+      const team = 'test'
+      const resp = { key: 'test' }
+      projectModule.createProject.mockResolvedValue(resp)
+
+      const response = await createProject({
+        user: { teams: [team] },
+        content: { team },
+      })
+
+      expect(response.getBody()).toEqual(resp)
+      expect(response.status).toEqual(200)
+    })
+    test('updateProjectName - should require project', async () => {
+      const response = await updateProjectName({ user: {}, content: {} })
+      expect(response.status).toEqual(400)
+    })
+    test('updateProjectName - should require team admin', async () => {
+      const project = 'test::toast'
+      const response = await updateProjectName({
+        user: { admins: [] },
+        content: { project },
+      })
+      expect(response.status).toEqual(403)
+    })
+    test('updateProjectName - should return 200 response', async () => {
+      const project = 'test::toast'
+      const response = await updateProjectName({
+        user: { admins: ['test'] },
+        content: { project },
+      })
+      expect(response.getBody().key).toEqual(project)
+      expect(response.status).toEqual(200)
+    })
+    test('deleteProject - should require project', async () => {
+      const response = await deleteProject({ user: {}, content: {} })
+      expect(response.status).toEqual(400)
+    })
+    test('deleteProject - should require team admin', async () => {
+      const project = 'test::toast'
+      const response = await deleteProject({
+        user: { admins: [] },
+        content: { project },
+      })
+      expect(response.status).toEqual(403)
+    })
+    test('deleteProject - should return 200 response', async () => {
+      const project = 'test::toast'
+      const response = await deleteProject({
+        user: { admins: ['test'] },
+        content: { project },
+      })
+      expect(response.getBody().key).toEqual(project)
       expect(response.status).toEqual(200)
     })
   })

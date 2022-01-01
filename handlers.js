@@ -16,7 +16,7 @@ const {
   removeUserFromAdmin,
   deleteUser,
 } = require('./modules/users')
-const { createProject, createStage, getKVEnvs } = require('./modules/envs')
+const { createStage, getKVEnvs } = require('./modules/envs')
 const {
   createTeam,
   listTeams,
@@ -24,6 +24,13 @@ const {
   updateTeamName,
   deleteTeam,
 } = require('./modules/teams')
+const {
+  createProject,
+  listProjects,
+  // getProject,
+  updateProjectName,
+  deleteProject,
+} = require('./modules/projects')
 
 const { parseJWT } = require('./modules/auth')
 const deta = require('./modules/db')
@@ -146,20 +153,20 @@ module.exports.deleteTeam = async ({ user, content: { team } }) => {
   }
 }
 
-module.exports.listProjects = async ({ url, user }) => {
+module.exports.listProjects = async ({ query, user }) => {
   try {
-    // verify user team access
-    const { searchParams } = new URL(url)
-    const {
-      team = user.teams[0],
-      limit,
-      last,
-    } = extractParams(searchParams)('team')
+    const { team = user.teams[0] } = query
     if (team && !user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
-    const payload = await deta.Base('projects').fetch({ team }, { limit, last })
-    return respondJSON({ payload })
+    let projects = []
+    try {
+      ;({ items: projects } = await listProjects({ team }))
+    } catch (e) {
+      console.warn('Deta fetch error')
+    }
+
+    return respondJSON({ payload: { projects } })
   } catch (err) {
     return respondError(err)
   }
@@ -178,6 +185,45 @@ module.exports.createProject = async ({ content: { team, name }, user }) => {
     const payload = await createProject({ team, project: name })
 
     return respondJSON({ payload })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.updateProjectName = async ({
+  user,
+  content: { project, name },
+}) => {
+  try {
+    if (!project) {
+      throw new HTTPError('Invalid project: project not supplied', 400)
+    }
+
+    const team = project.split('::')[0]
+
+    if (!user.admins.includes(team)) {
+      throw new HTTPError('Invalid access: team admin required', 403)
+    }
+    await updateProjectName({ project, name })
+    return respondJSON({ payload: { key: project } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.deleteProject = async ({ user, content: { project } }) => {
+  try {
+    if (!project) {
+      throw new HTTPError('Invalid project: project not supplied', 400)
+    }
+
+    const team = project.split('::')[0]
+    if (!user.admins.includes(team)) {
+      throw new HTTPError('Invalid access: team admin required', 403)
+    }
+
+    await deleteProject({ project })
+    return respondJSON({ payload: { key: project } })
   } catch (err) {
     return respondError(err)
   }

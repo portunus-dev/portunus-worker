@@ -83,8 +83,8 @@ describe('Teams Module', () => {
     global.KV = { delete: jest.fn((key) => delete KV_STORE[key]) }
 
     deta.fetchMock
-      .mockResolvedValueOnce({ items: [stage] })
       .mockResolvedValueOnce({ items: [project] })
+      .mockResolvedValueOnce({ items: [stage] })
       .mockResolvedValueOnce({ items: [user] })
 
     await deleteTeam({ team: teamToDelete })

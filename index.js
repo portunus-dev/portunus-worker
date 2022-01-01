@@ -9,6 +9,8 @@ const {
   updateTeamName,
   listProjects,
   createProject,
+  updateProjectName,
+  deleteProject,
   listStages,
   createStage,
   listUsers,
@@ -70,15 +72,21 @@ router.delete('/user', withRequireUser, deleteUser)
 
 router.get('/projects', withRequireUser, listProjects)
 // router.get('/project', getProject)
-router.put(
+router.post(
   '/project',
   withContent,
   withRequiredName('project'),
   withRequireUser,
   createProject
 )
-// router.put('/project/update', updateProject)
-// router.delete('/project/delete', deleteProject)
+router.put(
+  '/project',
+  withContent,
+  withRequiredName('project'),
+  withRequireUser,
+  updateProjectName
+)
+router.delete('/project', withContent, withRequireUser, deleteProject)
 
 router.get('/stages', withRequireUser, listStages)
 // router.get('/stage', getStage)
