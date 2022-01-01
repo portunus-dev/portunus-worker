@@ -14,14 +14,13 @@ module.exports.createProject = ({ team, project }) =>
     updated: new Date(),
   })
 
-module.exports.updateProjectName = ({ project, name }) => {
+module.exports.updateProjectName = ({ project, name }) =>
   deta.Base('projects').update(
     {
       project: name,
     },
     project
   )
-}
 
 module.exports.deleteProject = async ({ project }) => {
   // delete stages and KV
