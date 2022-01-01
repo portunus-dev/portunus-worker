@@ -4,9 +4,10 @@
         "commonjs": true,
         "es2021": true
     },
-    "extends": "eslint:recommended",
+    "extends": ["eslint:recommended", "prettier"],
     "parserOptions": {
-        "ecmaVersion": "latest" // "es2022 for class fields etc."
+        "ecmaVersion": "latest", // "es2022 for class fields etc."
+        "sourceType": "module"
     },
     "globals": {
         "MAIL_PASS": "readonly",
@@ -17,6 +18,8 @@
         "KV": "readonly"
     },
     "rules": {
-        "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }]
-    }
+        "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+        "prettier/prettier": "error"
+    },
+    "plugins": ["prettier"]
 }

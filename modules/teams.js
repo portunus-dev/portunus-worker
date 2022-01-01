@@ -33,8 +33,8 @@ module.exports.createTeam = async ({ name, user }) => {
   return team
 }
 
-module.exports.listTeams = async ({ user }) =>
-  await Promise.all([
+module.exports.listTeams = ({ user }) =>
+  Promise.all([
     ...user.teams
       .filter((o) => !user.admins.includes(o))
       .map((key) =>
@@ -71,7 +71,9 @@ module.exports.deleteTeam = async ({ team }) => {
     ;({ items: stages } = await deta
       .Base('stages')
       .fetch({ 'key?pfx': `${team}::` }, { limit: 1000, last: 0 }))
-  } catch (e) {}
+  } catch (e) {
+    console.warn('Deta fetch failed')
+  }
 
   await Promise.all(
     stages.map(
@@ -86,7 +88,9 @@ module.exports.deleteTeam = async ({ team }) => {
     ;({ items: projects } = await deta
       .Base('projects')
       .fetch({ 'key?pfx': `${team}::` }, {}))
-  } catch (e) {}
+  } catch (e) {
+    console.warn('Deta fetch failed')
+  }
 
   await Promise.all(
     projects.map(({ key }) => deta.Base('projects').delete(key))
@@ -101,7 +105,9 @@ module.exports.deleteTeam = async ({ team }) => {
     ;({ items: users } = await deta
       .Base('users')
       .fetch([{ 'teams?contains': team }, { 'admins?contains': team }], {}))
-  } catch (e) {}
+  } catch (e) {
+    console.warn('Deta fetch failed')
+  }
 
   const detaUsers = deta.Base('users')
   // TODO: make this "transactional"
