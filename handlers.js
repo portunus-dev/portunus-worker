@@ -482,19 +482,21 @@ module.exports.deleteUser = async ({ user }) => {
 // also shared for UI
 module.exports.getEnv = async ({ user, query }) => {
   try {
-    const { team, project: p, stage } = query
-
-    if (!team || !p || !stage) {
-      throw new HTTPError(
-        'Invalid request: team or project or stage not supplied',
-        400
-      )
+    const {
+      team = user.teams[0], // TODO: backward compatibility
+      project: p,
+      stage,
+    } = query
+    if (!p) {
+      throw new HTTPError('Invalid request: project not supplied', 400)
     }
-
-    if (!user.teams.includes(team)) {
+    if (!stage) {
+      throw new HTTPError('Invalid request: stage not supplied', 400)
+    }
+    // TODO: remove !team check in future after dropping backward compatibility
+    if (!team || !user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
-
     const vars = (await getKVEnvs({ team, p, stage })) || {}
     return respondJSON({
       payload: {
