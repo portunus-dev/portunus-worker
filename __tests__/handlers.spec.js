@@ -691,10 +691,10 @@ describe('Handlers!', () => {
       })
       expect(response.status).toEqual(200)
     })
-    test('getEnv - should require team', async () => {
-      const response = await getEnv({ user: {}, query: {} })
-      expect(response.status).toEqual(400)
-    })
+    // test('getEnv - should require team', async () => {
+    //   const response = await getEnv({ user: {}, query: {} })
+    //   expect(response.status).toEqual(400)
+    // })
     test('getEnv - should require project', async () => {
       const team = 'test'
       const response = await getEnv({ user: {}, query: { team } })

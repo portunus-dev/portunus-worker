@@ -2,7 +2,8 @@
     "env": {
         "browser": true,
         "commonjs": true,
-        "es2021": true
+        "es2021": true,
+        "jest/globals": true
     },
     "extends": ["eslint:recommended", "prettier"],
     "parserOptions": {
@@ -21,5 +22,5 @@
         "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
         "prettier/prettier": "error"
     },
-    "plugins": ["prettier"]
+    "plugins": ["prettier", "jest"]
 }
