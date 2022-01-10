@@ -1,0 +1,26 @@
+{
+    "env": {
+        "browser": true,
+        "commonjs": true,
+        "es2021": true,
+        "jest/globals": true
+    },
+    "extends": ["eslint:recommended", "prettier"],
+    "parserOptions": {
+        "ecmaVersion": "latest", // "es2022 for class fields etc."
+        "sourceType": "module"
+    },
+    "globals": {
+        "MAIL_PASS": "readonly",
+        "TOKEN_SECRET": "readonly",
+        "DETA_KEY": "readonly",
+        "DETA_ID": "readonly",
+        "USERS": "readonly",
+        "KV": "readonly"
+    },
+    "rules": {
+        "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+        "prettier/prettier": "error"
+    },
+    "plugins": ["prettier", "jest"]
+}

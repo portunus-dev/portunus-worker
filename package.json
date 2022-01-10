@@ -4,15 +4,26 @@
   "description": "package for creating workers templates",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "format": "prettier --write '**/*.{js,css,json,md}'"
+    "test": "jest",
+    "format": "prettier --write '**/*.{js,css,jsone,md}'",
+    "lint": "eslint *.js modules/*.js",
+    "dev": "env $(print-env) npx wrangler dev"
   },
   "author": "Runzhou Li (woozyking) <runzhou.li@gmail.com>",
   "license": "ISC",
   "devDependencies": {
-    "prettier": "^1.17.0"
+    "@cloudflare/wrangler": "^1.19.5",
+    "eslint": "^8.5.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-prettier": "^4.0.0",
+    "jest": "^27.4.5",
+    "prettier": "^2.2.1"
   },
   "dependencies": {
+    "deta-worker": "^0.2.0-alpha",
+    "eslint-plugin-jest": "^25.3.4",
+    "itty-router": "^2.4.5",
+    "itty-router-extras": "^0.4.2",
     "jsonwebtoken": "^8.5.1",
     "serverless-cloudflare-workers": "^1.2.0"
   }
