@@ -40,7 +40,7 @@ beforeAll(() => {
 
 describe('Handlers!', () => {
   test('listAll returns teams, project, stages for user', async () => {
-    const user = { teams: ['team1'] }
+    const user = { teams: ['team1'], admins: [] }
     const team1 = { name: 'team1', key: 'team1' }
     const project1 = {
       team: 'team1',
@@ -71,7 +71,7 @@ describe('Handlers!', () => {
     }
     const stageList = [stage1, stage2, stage3]
 
-    teamModule.getTeam.mockResolvedValue(team1)
+    teamModule.listTeams.mockResolvedValue([team1])
     deta.fetchMock
       .mockImplementationOnce(async (query) => {
         return {

@@ -33,7 +33,6 @@ module.exports.deleteStage = (stage) =>
 module.exports.updateStageVars = async ({ stage, updates }) => {
   const updated = new Date()
   const key = stage
-
   // updates = vars update actions
   // can be add, remove, or edit
   // { add: { key: value, ... }, remove: [key], edit: { key: value, ... } }

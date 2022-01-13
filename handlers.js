@@ -26,7 +26,7 @@ const {
 const {
   createTeam,
   listTeams,
-  getTeam,
+  // getTeam,
   updateTeamName,
   deleteTeam,
 } = require('./modules/teams')
@@ -76,8 +76,7 @@ module.exports.root = ({ cf }) =>
 // UI handlers
 module.exports.listAll = async ({ user }) => {
   try {
-    const teams = await Promise.all(user.teams.map(getTeam))
-
+    const teams = await listTeams({ user })
     const teamProjects = await Promise.all(
       teams.map((t) =>
         deta
@@ -88,7 +87,6 @@ module.exports.listAll = async ({ user }) => {
     )
 
     const projects = teamProjects.flat()
-
     const projectStages = await Promise.all(
       projects.map((p) =>
         deta
@@ -99,7 +97,6 @@ module.exports.listAll = async ({ user }) => {
     )
 
     const stages = projectStages.flat()
-
     const payload = { teams, projects, stages }
 
     return respondJSON({ payload })
@@ -120,7 +117,7 @@ module.exports.listTeams = async ({ user }) => {
 module.exports.createTeam = async ({ user, content: { name } }) => {
   try {
     const key = await createTeam({ user, name })
-    return respondJSON({ payload: { key } })
+    return respondJSON({ payload: { key, name } })
   } catch (err) {
     return respondError(err)
   }
@@ -168,7 +165,7 @@ module.exports.listProjects = async ({ query, user }) => {
     try {
       ;({ items: projects } = await listProjects({ team }))
     } catch (e) {
-      console.warn('Deta fetch error')
+      console.warn('Deta fetch error', e)
     }
 
     return respondJSON({ payload: { projects } })

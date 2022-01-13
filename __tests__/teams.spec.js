@@ -35,6 +35,9 @@ describe('Teams Module', () => {
     expect(deta.updateMock).toBeCalledTimes(2)
     expect(global.USERS.put).toBeCalledTimes(2)
     expect(USER_STORE[user.email]).not.toBeNull()
+    const jsonUser = JSON.parse(USER_STORE[user.email])
+    expect(jsonUser.teams.includes(teamId)).toEqual(true)
+    expect(jsonUser.admins.includes(teamId)).toEqual(true)
   })
   test('listTeams pulls team/admin info and flattens', async () => {
     const user = { teams: ['test-key', 'test-key2'], admins: ['test-key'] }

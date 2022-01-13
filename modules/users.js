@@ -52,7 +52,7 @@ module.exports.addUserToTeam = ({ user, team }) => {
   ])
 }
 
-module.exports.removeUserFromTeam = async ({ user, team }) => {
+module.exports.removeUserFromTeam = ({ user, team }) => {
   // update user in both deta Base and Cloudflare KV
   const teams = user.teams.filter((o) => o !== team)
   const admins = user.admins.filter((o) => o !== team)
@@ -60,7 +60,7 @@ module.exports.removeUserFromTeam = async ({ user, team }) => {
 
   // TODO: make this "transactional"
   // TODO: unify with other user updates e.g. ./user.update
-  return await Promise.all([
+  return Promise.all([
     users.update({ teams, admins }, user.key),
     USERS.put(
       user.email,
@@ -75,12 +75,12 @@ module.exports.removeUserFromTeam = async ({ user, team }) => {
 
 // TODO: this should not allow duplicate teams
 // TODO: should it also add to .teams?
-module.exports.addUserToAdmin = async ({ user, team }) => {
+module.exports.addUserToAdmin = ({ user, team }) => {
   // update user in both deta Base and Cloudflare KV
   const users = deta.Base('users')
   // TODO: make this "transactional"
   // TODO: unify with other user updates e.g. ./user.update
-  return await Promise.all([
+  return Promise.all([
     users.update({ admins: users.util.append(team) }, user.key),
     USERS.put(
       user.email,
@@ -92,7 +92,7 @@ module.exports.addUserToAdmin = async ({ user, team }) => {
   ])
 }
 
-module.exports.removeUserFromAdmin = async ({ user, team }) => {
+module.exports.removeUserFromAdmin = ({ user, team }) => {
   // update user in both deta Base and Cloudflare KV
 
   const admins = user.admins.filter((o) => o !== team)
@@ -100,7 +100,7 @@ module.exports.removeUserFromAdmin = async ({ user, team }) => {
 
   // TODO: make this "transactional"
   // TODO: unify with other user updates e.g. ./user.update
-  return await Promise.all([
+  return Promise.all([
     users.update({ admins }, user.key),
     USERS.put(
       user.email,

@@ -15,7 +15,9 @@ module.exports.createTeam = async ({ name, user }) => {
   const { key: team } = await deta.Base('teams').put({ name })
 
   await addUserToTeam({ user, team })
-  await addUserToAdmin({ user, team })
+  // add team, so that .teams is not overwritten by stale user
+  const updatedUser = { ...user, teams: [...user.teams, team] }
+  await addUserToAdmin({ user: updatedUser, team })
 
   return team
 }
@@ -23,14 +25,14 @@ module.exports.createTeam = async ({ name, user }) => {
 module.exports.listTeams = ({ user }) =>
   Promise.all([
     ...user.teams
-      .filter((o) => !user.admins.includes(o))
+      .filter((o) => !(user.admins || []).includes(o))
       .map((key) =>
         deta
           .Base('teams')
           .get(key)
           .then((p) => ({ ...p, admin: false }))
       ),
-    ...user.admins.map((key) =>
+    ...(user.admins || []).map((key) =>
       deta
         .Base('teams')
         .get(key)
