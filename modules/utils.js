@@ -17,8 +17,8 @@ module.exports.parseProj = (proj) =>
 
 module.exports.corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,HEAD,POST,OPTIONS',
-  'Access-Control-Allow-Headers': 'portunus-jwt',
+  'Access-Control-Allow-Methods': 'GET,HEAD,POST,PUT,DELETE,OPTIONS',
+  'Access-Control-Allow-Headers': 'portunus-jwt,Content-Type',
   'Access-Control-Max-Age': '86400',
 }
 
