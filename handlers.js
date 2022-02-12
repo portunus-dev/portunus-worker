@@ -1,7 +1,11 @@
 const jwt = require('jsonwebtoken')
+const { totp } = require('otplib')
+
+totp.options = { step: 60 * 5 } // 5 minutes for the OTPs
 
 const { HTTPError, respondError, respondJSON } = require('./modules/utils')
 const {
+  getUser,
   getKVUser,
   listTeamUsers,
   createUser,
@@ -506,6 +510,21 @@ module.exports.getEnv = async ({ user, query }) => {
 }
 
 // Auth handlers
+module.exports.getOTP = async ({ query }) => {
+  const { user } = query // user is email
+  if (!user) {
+    return respondError(new HTTPError('User not supplied', 400))
+  }
+  // TODO: cover new user case (no user in deta/KV)
+  const { items: [u = {}] = [] } = (await getUser(user)) || {}
+  if (!u.jwt_uuid) {
+    return respondError(new HTTPError(`${user} not found`, 404))
+  }
+  // Use time-based OTP to avoid storing them in deta/KV
+  const otp = totp.generate(u.jwt_uuid)
+  return respondJSON({ payload: { otp } })
+}
+
 module.exports.getToken = async ({ query }) => {
   // TODO: need to mimic getEnv to support multiple-team user
   const { user, team } = query

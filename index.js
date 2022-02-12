@@ -24,6 +24,7 @@ const {
   removeUserFromAdmin,
   listAll,
   getToken,
+  getOTP,
   getEnv,
   withRequiredName,
 } = require('./handlers')
@@ -111,7 +112,8 @@ router.put('/env', withContent, withRequireUser, updateStageVars)
 // router.put('/var/update', updateVar)
 // router.delete('/var/delete', deleteVar)
 
-// CLI
+// auth
+router.get('/otp', getOTP)
 router.get('/token', getToken)
 router.get('/', root)
 
