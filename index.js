@@ -25,6 +25,7 @@ const {
   listAll,
   getToken,
   getOTP,
+  login,
   getEnv,
   withRequiredName,
 } = require('./handlers')
@@ -114,7 +115,8 @@ router.put('/env', withContent, withRequireUser, updateStageVars)
 
 // auth
 router.get('/otp', getOTP)
-router.get('/token', getToken)
+router.get('/login', login)
+router.get('/token', getToken) // legacy direct JWT email route
 router.get('/', root)
 
 // 404

@@ -510,21 +510,80 @@ module.exports.getEnv = async ({ user, query }) => {
 }
 
 // Auth handlers
-module.exports.getOTP = async ({ query }) => {
-  const { user } = query // user is email
+module.exports.getOTP = async ({ query, url }) => {
+  const { user, origin } = query // user is email
   if (!user) {
     return respondError(new HTTPError('User not supplied', 400))
   }
   // TODO: cover new user case (no user in deta/KV)
-  const { items: [u = {}] = [] } = (await getUser(user)) || {}
-  if (!u.jwt_uuid) {
+  const { jwt_uuid, email } = await getUser(user)
+  if (!jwt_uuid) {
     return respondError(new HTTPError(`${user} not found`, 404))
   }
   // Use time-based OTP to avoid storing them in deta/KV
-  const otp = totp.generate(u.jwt_uuid)
-  return respondJSON({ payload: { otp } })
+  const otp = totp.generate(jwt_uuid)
+  const { origin: defaultOrigin } = new URL(url)
+  // TODO: tricky for local dev as the origin is mapped to remote cloudflare worker
+  // TODO: need to manually remove sendgrid tracking https://app.sendgrid.com/settings/tracking
+  // need to find a way to programmatically turn it off always https://stackoverflow.com/a/63360103/158111
+  const magicLink = `${
+    origin || defaultOrigin + '/login'
+  }?user=${user}&otp=${otp}`
+  // send email with OTP
+  try {
+    await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${MAIL_PASS}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email }] }],
+        from: { email: 'dev@mindswire.com' },
+        subject: 'Portunus Login OTP',
+        content: [
+          {
+            type: 'text/plain',
+            value: `
+              OTP: ${otp}
+              Magic Link: ${magicLink}
+            `,
+          },
+        ],
+      }),
+    })
+  } catch (error) {
+    return respondError(new HTTPError(`Unable to send OTP to ${user}`, 500))
+  }
+
+  return respondJSON({ payload: { message: `OTP sent to ${user}` } })
 }
 
+module.exports.login = async ({ query }) => {
+  const { user, otp, team } = query
+  if (!user || !otp) {
+    return respondError(new HTTPError('User or OTP not supplied', 400))
+  }
+  const {
+    email,
+    jwt_uuid,
+    teams: [defaultTeam],
+  } = await getUser(user)
+  if (!jwt_uuid) {
+    return respondError(new HTTPError(`${user} not found`, 404))
+  }
+  const isValid = totp.verify({ secret: jwt_uuid, token: otp })
+  if (!isValid) {
+    return respondError(new HTTPError('Invalid OTP', 403))
+  }
+  const token = jwt.sign(
+    { email, jwt_uuid, team: team || defaultTeam },
+    TOKEN_SECRET
+  )
+  return respondJSON({ payload: { jwt: token } })
+}
+
+// legacy direct JWT through email
 module.exports.getToken = async ({ query }) => {
   // TODO: need to mimic getEnv to support multiple-team user
   const { user, team } = query

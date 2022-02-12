@@ -2,7 +2,10 @@ const deta = require('./db')
 
 // deta Base - users, for UI use
 module.exports.getUser = (email) =>
-  deta.Base('users').fetch({ email }, { limit: 1 })
+  deta
+    .Base('users')
+    .fetch({ email }, { limit: 1 })
+    .then(({ items = [] }) => items[0] || {})
 
 module.exports.listTeamUsers = ({ team }) =>
   deta
