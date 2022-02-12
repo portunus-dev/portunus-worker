@@ -1,14 +1,12 @@
 jest.mock('../modules/db')
 const deta = require('../modules/db')
 const {
-  getUser,
+  // getUser,
   createUser,
-  listUsers,
   addUserToTeam,
   removeUserFromTeam,
   addUserToAdmin,
   removeUserFromAdmin,
-  updateUserName,
   deleteUser,
 } = require('../modules/users')
 
@@ -143,7 +141,6 @@ describe('Users Module', () => {
       teams: ['new-team'],
       admins: ['new-team'],
     }
-    const team = 'new-team'
 
     const DETA = { [user.key]: user }
     deta.deleteMock.mockImplementation((key) => delete DETA[key])

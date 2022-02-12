@@ -1,11 +1,6 @@
 const jwt = require('jsonwebtoken')
 
-const {
-  extractParams,
-  HTTPError,
-  respondError,
-  respondJSON,
-} = require('./modules/utils')
+const { HTTPError, respondError, respondJSON } = require('./modules/utils')
 const {
   getKVUser,
   listTeamUsers,
@@ -510,11 +505,10 @@ module.exports.getEnv = async ({ user, query }) => {
   }
 }
 
-// CLI handlers
-module.exports.getToken = async ({ url }) => {
-  const { searchParams } = new URL(url)
+// Auth handlers
+module.exports.getToken = async ({ query }) => {
   // TODO: need to mimic getEnv to support multiple-team user
-  const { user, team } = extractParams(searchParams)('user')
+  const { user, team } = query
   const {
     email,
     jwt_uuid,
