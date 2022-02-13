@@ -1,11 +1,13 @@
 const jwt = require('jsonwebtoken')
 const { totp } = require('otplib')
+const { v4: uuidv4 } = require('uuid')
 
 totp.options = { step: 60 * 5 } // 5 minutes for the OTPs
 
 const { HTTPError, respondError, respondJSON } = require('./modules/utils')
 const {
   getUser,
+  updateUser,
   getKVUser,
   listTeamUsers,
   createUser,
@@ -516,29 +518,37 @@ module.exports.getOTP = async ({ query, url }) => {
     return respondError(new HTTPError('User not supplied', 400))
   }
   // TODO: cover new user case (no user in deta/KV)
-  const { jwt_uuid, email } = await getUser(user)
-  if (!jwt_uuid) {
+  const u = await getUser(user)
+  if (!u.email) {
     return respondError(new HTTPError(`${user} not found`, 404))
   }
+  const tasks = []
+  if (!u.otp_secret) {
+    u.otp_secret = uuidv4()
+    if (u.otp_secret === u.jwt_uuid) {
+      // Note: this shouldn't happen anyway
+      throw new Error('OTP secret and JWT UUID are the same')
+    }
+    u.updated = new Date()
+    tasks.push(updateUser(u))
+  }
   // Use time-based OTP to avoid storing them in deta/KV
-  const otp = totp.generate(jwt_uuid)
-  const { origin: defaultOrigin } = new URL(url)
+  const otp = totp.generate(u.otp_secret)
   // TODO: tricky for local dev as the origin is mapped to remote cloudflare worker
-  // TODO: need to manually remove sendgrid tracking https://app.sendgrid.com/settings/tracking
-  // need to find a way to programmatically turn it off always https://stackoverflow.com/a/63360103/158111
-  const magicLink = `${
-    origin || defaultOrigin + '/login'
-  }?user=${user}&otp=${otp}`
+  const { origin: _origin } = new URL(url)
+  const defaultOrigin = `${_origin}/login`
   // send email with OTP
-  try {
-    await fetch('https://api.sendgrid.com/v3/mail/send', {
+  // TODO: need to manually remove sendgrid tracking https://app.sendgrid.com/settings/tracking
+  // TODO: need to programmatically turn it off always https://stackoverflow.com/a/63360103/158111
+  tasks.push(
+    fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
       headers: {
         authorization: `Bearer ${MAIL_PASS}`,
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        personalizations: [{ to: [{ email }] }],
+        personalizations: [{ to: [{ email: u.email }] }],
         from: { email: 'dev@mindswire.com' },
         subject: 'Portunus Login OTP',
         content: [
@@ -546,16 +556,19 @@ module.exports.getOTP = async ({ query, url }) => {
             type: 'text/plain',
             value: `
               OTP: ${otp}
-              Magic Link: ${magicLink}
+              Magic Link: ${origin || defaultOrigin}?user=${user}&otp=${otp}
             `,
           },
         ],
       }),
     })
-  } catch (error) {
+  )
+  try {
+    await Promise.all(tasks)
+  } catch (_) {
+    // TODO: log error
     return respondError(new HTTPError(`Unable to send OTP to ${user}`, 500))
   }
-
   return respondJSON({ payload: { message: `OTP sent to ${user}` } })
 }
 
@@ -567,12 +580,13 @@ module.exports.login = async ({ query }) => {
   const {
     email,
     jwt_uuid,
+    otp_secret,
     teams: [defaultTeam],
   } = await getUser(user)
-  if (!jwt_uuid) {
+  if (!email || !otp_secret) {
     return respondError(new HTTPError(`${user} not found`, 404))
   }
-  const isValid = totp.verify({ secret: jwt_uuid, token: otp })
+  const isValid = totp.verify({ secret: otp_secret, token: otp })
   if (!isValid) {
     return respondError(new HTTPError('Invalid OTP', 403))
   }

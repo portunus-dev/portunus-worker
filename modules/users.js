@@ -26,14 +26,17 @@ module.exports.createUser = async (email) => {
   return dbUser
 }
 
-module.exports.update = (user) => {
+module.exports.updateUser = (user) => {
   if (!user.key) {
     throw new Error('user.key is required')
   }
+  // remove deta exclusive fields (such as otp_secret)
+  const kvUser = { ...user }
+  delete kvUser.otp_secret
   return Promise.all([
     // TODO: do this "transactionally"
     deta.Base('users').put(user), // deta.Base put(data)
-    USERS.put(user.email, JSON.stringify(user)), // KV put(key, value)
+    USERS.put(user.email, JSON.stringify(kvUser)), // KV put(key, value)
   ])
 }
 
