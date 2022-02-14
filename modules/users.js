@@ -1,8 +1,13 @@
+const { v4: uuidv4 } = require('uuid')
+
 const deta = require('./db')
 
 // deta Base - users, for UI use
-module.exports.get = (email) =>
-  deta.Base('users').fetch({ email }, { limit: 1 })
+module.exports.getUser = (email) =>
+  deta
+    .Base('users')
+    .fetch({ email }, { limit: 1 })
+    .then(({ items = [] }) => items[0] || {})
 
 module.exports.listTeamUsers = ({ team }) =>
   deta
@@ -12,25 +17,36 @@ module.exports.listTeamUsers = ({ team }) =>
 module.exports.createUser = async (email) => {
   const user = {
     email,
+    jwt_uuid: uuidv4(),
+    otp_secret: uuidv4(),
     teams: [],
     admins: [],
+    updated: new Date(),
   }
-
+  if (user.jwt_uuid === user.otp_secret) {
+    // Note: this shouldn't really happen anyway
+    throw new Error('jwt_uuid and otp_secret must be different')
+  }
   // TODO: do this "transactionally"
   const dbUser = await deta.Base('users').insert(user)
+  // remove deta exclusive fields (such as otp_secret)
+  delete dbUser.otp_secret
   await USERS.put(user.email, JSON.stringify(dbUser))
 
   return dbUser
 }
 
-module.exports.update = (user) => {
+module.exports.updateUser = (user) => {
   if (!user.key) {
     throw new Error('user.key is required')
   }
+  // remove deta exclusive fields (such as otp_secret)
+  const kvUser = { ...user }
+  delete kvUser.otp_secret
   return Promise.all([
     // TODO: do this "transactionally"
     deta.Base('users').put(user), // deta.Base put(data)
-    USERS.put(user.email, JSON.stringify(user)), // KV put(key, value)
+    USERS.put(user.email, JSON.stringify(kvUser)), // KV put(key, value)
   ])
 }
 

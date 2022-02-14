@@ -24,6 +24,8 @@ const {
   removeUserFromAdmin,
   listAll,
   getToken,
+  getOTP,
+  login,
   getEnv,
   withRequiredName,
 } = require('./handlers')
@@ -111,8 +113,10 @@ router.put('/env', withContent, withRequireUser, updateStageVars)
 // router.put('/var/update', updateVar)
 // router.delete('/var/delete', deleteVar)
 
-// CLI
-router.get('/token', getToken)
+// auth
+router.get('/otp', getOTP)
+router.get('/login', login)
+router.get('/token', getToken) // legacy direct JWT email route
 router.get('/', root)
 
 // 404
