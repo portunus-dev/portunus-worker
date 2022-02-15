@@ -522,7 +522,6 @@ module.exports.getOTP = async ({ query, url }) => {
   if (!u.email) {
     return respondError(new HTTPError(`${user} not found`, 404))
   }
-  const tasks = []
   if (!u.otp_secret) {
     u.otp_secret = uuidv4()
     if (u.otp_secret === u.jwt_uuid) {
@@ -530,45 +529,42 @@ module.exports.getOTP = async ({ query, url }) => {
       throw new Error('OTP secret and JWT UUID are the same')
     }
     u.updated = new Date()
-    tasks.push(updateUser(u))
+    await updateUser(u)
   }
   // Use time-based OTP to avoid storing them in deta/KV
+  // TODO: check hash of OTP against some hot cache and see if it's already generated and sent
+  //       so we can prevent unncessary spamming of email
   const otp = totp.generate(u.otp_secret)
+  const expieresAt = new Date(Date.now() + totp.timeRemaining() * 1000)
   // TODO: tricky for local dev as the origin is mapped to remote cloudflare worker
   const { origin: _origin } = new URL(url)
   const defaultOrigin = `${_origin}/login`
   // send email with OTP
   // TODO: need to manually remove sendgrid tracking https://app.sendgrid.com/settings/tracking
   // TODO: need to programmatically turn it off always https://stackoverflow.com/a/63360103/158111
-  tasks.push(
-    fetch('https://api.sendgrid.com/v3/mail/send', {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${MAIL_PASS}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email: u.email }] }],
-        from: { email: 'dev@mindswire.com' },
-        subject: 'Portunus Login OTP',
-        content: [
-          {
-            type: 'text/plain',
-            value: `
-              OTP: ${otp}
-              Magic Link: ${origin || defaultOrigin}?user=${user}&otp=${otp}
-            `,
-          },
-        ],
-      }),
-    })
-  )
-  try {
-    await Promise.all(tasks)
-  } catch (_) {
-    // TODO: log error
-    return respondError(new HTTPError(`Unable to send OTP to ${user}`, 500))
-  }
+  // TODO: format `expiresAt` to user locale (supplied using `Accept-Language` header), and cf.timezone from cloudflare
+  await fetch('https://api.sendgrid.com/v3/mail/send', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${MAIL_PASS}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: u.email }] }],
+      from: { email: 'dev@mindswire.com' },
+      subject: 'Portunus Login OTP',
+      content: [
+        {
+          type: 'text/plain',
+          value: `
+            OTP: ${otp}
+            Magic Link: ${origin || defaultOrigin}?user=${user}&otp=${otp}
+            Expires at: ${expieresAt.toISOString()}
+          `,
+        },
+      ],
+    }),
+  })
   return respondJSON({ payload: { message: `OTP sent to ${user}` } })
 }
 
