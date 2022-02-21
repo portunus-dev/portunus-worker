@@ -535,7 +535,7 @@ module.exports.getOTP = async ({ query, url }) => {
   // TODO: check hash of OTP against some hot cache and see if it's already generated and sent
   //       so we can prevent unncessary spamming of email
   const otp = totp.generate(u.otp_secret)
-  const expieresAt = new Date(Date.now() + totp.timeRemaining() * 1000)
+  const expiresAt = new Date(Date.now() + totp.timeRemaining() * 1000)
   // TODO: tricky for local dev as the origin is mapped to remote cloudflare worker
   const { origin: _origin } = new URL(url)
   const defaultOrigin = `${_origin}/login`
@@ -559,7 +559,7 @@ module.exports.getOTP = async ({ query, url }) => {
           value: `
             OTP: ${otp}
             Magic Link: ${origin || defaultOrigin}?user=${user}&otp=${otp}
-            Expires at: ${expieresAt.toISOString()}
+            Expires at: ${expiresAt.toISOString()}
           `,
         },
       ],
