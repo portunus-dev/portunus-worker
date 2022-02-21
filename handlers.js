@@ -514,15 +514,13 @@ module.exports.getEnv = async ({ user, query }) => {
 // Auth handlers
 module.exports.getOTP = async ({ query, url }) => {
   const { user, origin } = query // user is email
-  if (!user) {
-    return respondError(new HTTPError('User not supplied', 400))
+  if (!user || !EMAIL_REGEXP.test(user)) {
+    return respondError(new HTTPError('User email not supplied', 400))
   }
-  // TODO: cover new user case (no user in deta/KV)
-  const u = await getUser(user)
+  let u = await getUser(user)
   if (!u.email) {
-    return respondError(new HTTPError(`${user} not found`, 404))
-  }
-  if (!u.otp_secret) {
+    u = await createUser(user)
+  } else if (!u.otp_secret) {
     u.otp_secret = uuidv4()
     if (u.otp_secret === u.jwt_uuid) {
       // Note: this shouldn't happen anyway
@@ -532,8 +530,6 @@ module.exports.getOTP = async ({ query, url }) => {
     await updateUser(u)
   }
   // Use time-based OTP to avoid storing them in deta/KV
-  // TODO: check hash of OTP against some hot cache and see if it's already generated and sent
-  //       so we can prevent unncessary spamming of email
   const otp = totp.generate(u.otp_secret)
   const expiresAt = new Date(Date.now() + totp.timeRemaining() * 1000)
   // TODO: tricky for local dev as the origin is mapped to remote cloudflare worker
@@ -542,6 +538,7 @@ module.exports.getOTP = async ({ query, url }) => {
   // send email with OTP
   // TODO: need to manually remove sendgrid tracking https://app.sendgrid.com/settings/tracking
   // TODO: need to programmatically turn it off always https://stackoverflow.com/a/63360103/158111
+  // TODO: setup own SMTP server (mailu) or AWS SES for much cheaper delivery
   // TODO: format `expiresAt` to user locale (supplied using `Accept-Language` header), and cf.timezone from cloudflare
   await fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
