@@ -32,8 +32,7 @@ module.exports.createUser = async (email) => {
     throw new Error('jwt_uuid and otp_secret must be different')
   }
   // TODO: do this "transactionally"
-  // using put instead of insert unless we decide email as key
-  const dbUser = await deta.Base('users').put(user)
+  const dbUser = await deta.Base('users').insert(user)
   // remove deta exclusive fields (such as otp_secret)
   const kvUser = { ...user }
   delete kvUser.otp_secret

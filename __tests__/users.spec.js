@@ -11,6 +11,7 @@ const {
 } = require('../modules/users')
 
 beforeEach(() => {
+  deta.insertMock.mockClear()
   deta.getMock.mockClear()
   deta.putMock.mockClear()
   deta.updateMock.mockClear()
