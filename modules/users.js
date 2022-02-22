@@ -34,7 +34,7 @@ module.exports.createUser = async (email) => {
   // TODO: do this "transactionally"
   const dbUser = await deta.Base('users').insert(user)
   // remove deta exclusive fields (such as otp_secret)
-  const kvUser = { ...user }
+  const kvUser = { ...dbUser }
   delete kvUser.otp_secret
   await USERS.put(user.email, JSON.stringify(kvUser))
 
