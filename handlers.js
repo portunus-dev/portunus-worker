@@ -6,7 +6,7 @@ totp.options = { step: 60 * 5 } // 5 minutes for the OTPs
 
 const { HTTPError, respondError, respondJSON } = require('./modules/utils')
 const {
-  getUser,
+  fetchUser, // TODO deprecated, use getUser
   updateUser,
   getKVUser,
   listTeamUsers,
@@ -517,10 +517,11 @@ module.exports.getOTP = async ({ query, url }) => {
   if (!user || !EMAIL_REGEXP.test(user)) {
     return respondError(new HTTPError('User email not supplied', 400))
   }
-  let u = await getUser(user)
-  if (!u.email) {
+  let u = await fetchUser(user)
+  if (!u) {
     u = await createUser(user)
   } else if (!u.otp_secret) {
+    // legacy user without otp_secret
     u.otp_secret = uuidv4()
     if (u.otp_secret === u.jwt_uuid) {
       // Note: this shouldn't happen anyway
@@ -575,7 +576,7 @@ module.exports.login = async ({ query }) => {
     jwt_uuid,
     otp_secret,
     teams: [defaultTeam],
-  } = await getUser(user)
+  } = (await fetchUser(user)) || {}
   if (!email || !otp_secret) {
     return respondError(new HTTPError(`${user} not found`, 404))
   }
