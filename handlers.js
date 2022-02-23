@@ -547,7 +547,10 @@ module.exports.getOTP = async ({ query, url, headers, cf = {} }) => {
   const plainEmail = [
     `OTP: ${otp}`,
     `Magic-Link: ${origin || defaultOrigin}?user=${user}&otp=${otp}`,
-    `Expires at: ${expiresAt.toLocaleString(locale, { timeZone })}`,
+    `Expires at: ${expiresAt.toLocaleString(locale, {
+      timeZone,
+      timeZoneName: 'long',
+    })}`,
   ].join('\n')
   await fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
