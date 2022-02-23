@@ -583,7 +583,7 @@ module.exports.login = async ({ query }) => {
     jwt_uuid,
     otp_secret,
     teams: [defaultTeam],
-  } = (await fetchUser(user)) || {}
+  } = (await fetchUser(user)) || { teams: [] }
   if (!email || !otp_secret) {
     return respondError(new HTTPError(`${user} not found`, 404))
   }
