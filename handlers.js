@@ -65,11 +65,12 @@ module.exports.withRequiredName =
   - for create/update/delete, respond with key or name
  */
 
-module.exports.root = ({ cf }) =>
+module.exports.root = ({ headers, cf }) =>
   respondJSON({
     payload: {
       cli: 'pip install -U print-env --pre',
       'Web UI': 'wip',
+      language: headers.get('Accept-Language'),
       cf,
     },
   })
@@ -512,7 +513,7 @@ module.exports.getEnv = async ({ user, query }) => {
 }
 
 // Auth handlers
-module.exports.getOTP = async ({ query, url }) => {
+module.exports.getOTP = async ({ query, url, headers, cf = {} }) => {
   const { user, origin } = query // user is email
   if (!user || !EMAIL_REGEXP.test(user)) {
     return respondError(new HTTPError('User email not supplied', 400))
@@ -536,11 +537,18 @@ module.exports.getOTP = async ({ query, url }) => {
   // TODO: tricky for local dev as the origin is mapped to remote cloudflare worker
   const { origin: _origin } = new URL(url)
   const defaultOrigin = `${_origin}/login`
+  // obtain locale and timezone from request for email `expiresAt` formatting
+  const locale = (headers.get('Accept-Language') || '').split(',')[0] || 'en'
+  const timeZone = cf.timezone || 'UTC'
   // send email with OTP
   // TODO: need to manually remove sendgrid tracking https://app.sendgrid.com/settings/tracking
   // TODO: need to programmatically turn it off always https://stackoverflow.com/a/63360103/158111
   // TODO: setup own SMTP server (mailu) or AWS SES for much cheaper delivery
-  // TODO: format `expiresAt` to user locale (supplied using `Accept-Language` header), and cf.timezone from cloudflare
+  const plainEmail = [
+    `OTP: ${otp}`,
+    `Magic-Link: ${origin || defaultOrigin}?user=${user}&otp=${otp}`,
+    `Expires at: ${expiresAt.toLocaleString(locale, { timeZone })}`,
+  ].join('\n')
   await fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
     headers: {
@@ -550,20 +558,16 @@ module.exports.getOTP = async ({ query, url }) => {
     body: JSON.stringify({
       personalizations: [{ to: [{ email: u.email }] }],
       from: { email: 'dev@mindswire.com' },
-      subject: 'Portunus Login OTP',
+      subject: 'Portunus Login OTP/Magic-Link',
       content: [
         {
           type: 'text/plain',
-          value: `
-            OTP: ${otp}
-            Magic Link: ${origin || defaultOrigin}?user=${user}&otp=${otp}
-            Expires at: ${expiresAt.toISOString()}
-          `,
+          value: plainEmail,
         },
       ],
     }),
   })
-  return respondJSON({ payload: { message: `OTP sent to ${user}` } })
+  return respondJSON({ payload: { message: `OTP/Magic-Link sent to ${user}` } })
 }
 
 module.exports.login = async ({ query }) => {
