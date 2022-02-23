@@ -3,21 +3,20 @@ const { v4: uuidv4 } = require('uuid')
 const deta = require('./db')
 
 // deta Base - users, for UI use
-// TODO: see if this can become a bottleneck at scale
-// in which case we can get the key from KV and use `get` instead of `fetch`
-// or if we transition to use email as key, we can directly `get`
-module.exports.getUser = (email) =>
+// TODO: deprecated in favor of getUser below
+module.exports.fetchUser = (email) =>
   deta
     .Base('users')
     .fetch({ email }, { limit: 1 })
-    .then(({ items = [] }) => items[0] || {})
+    .then(({ items = [] }) => items[0] || null)
+
+module.exports.getUser = deta.Base('users').get
 
 module.exports.listTeamUsers = ({ team }) =>
   deta
     .Base('users')
     .fetch([{ 'teams?contains': team }, { 'admins?contains': team }], {})
 
-// TODO: email should be unique, maybe transition to email as key?
 module.exports.createUser = async (email) => {
   const user = {
     email,
@@ -32,7 +31,7 @@ module.exports.createUser = async (email) => {
     throw new Error('jwt_uuid and otp_secret must be different')
   }
   // TODO: do this "transactionally"
-  const dbUser = await deta.Base('users').insert(user)
+  const dbUser = await deta.Base('users').insert(user, email) // email as key
   // remove deta exclusive fields (such as otp_secret)
   const kvUser = { ...dbUser }
   delete kvUser.otp_secret
