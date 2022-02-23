@@ -1,6 +1,5 @@
 jest.mock('deta-worker')
 const deta = require('deta-worker')
-const detaWorker = require('../../__mocks__/deta-worker')
 
 // TODO any good places or utils for this? e.g. represent data in a useful way no-data-key, data-key
 const TEST_DB = {
@@ -66,7 +65,7 @@ const insertMock = jest.fn(async (entry, db) => {
   TEST_DB[db][key] = value
   return value
 })
-const putMock = jest.fn(async (updates, key, db) => {
+const putMock = jest.fn(async (_updates, key, _db) => {
   const finalKey = key || Date.now().toString().substring(0, 12)
   return { key: finalKey }
 })

@@ -29,7 +29,7 @@ const {
   getEnv,
   withRequiredName,
 } = require('./handlers')
-const { corsHeaders, respondJSON } = require('./modules/utils')
+const { corsHeaders, respondJSON, respondError } = require('./modules/utils')
 const { withRequireUser } = require('./modules/auth')
 
 const router = Router()
@@ -133,5 +133,5 @@ router.all(
 )
 
 addEventListener('fetch', (event) =>
-  event.respondWith(router.handle(event.request))
+  event.respondWith(router.handle(event.request).catch(respondError))
 )

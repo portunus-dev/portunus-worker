@@ -13,7 +13,7 @@ module.exports.HTTPError = class extends Error {
 }
 
 module.exports.respondError = (err) =>
-  new Response(JSON.stringify({ message: err.message, stack: err.stack }), {
+  new Response(JSON.stringify({ message: err.message }), {
     headers: { ...this.corsHeaders, 'content-type': 'application/json' },
     status: err.status || 500,
   })

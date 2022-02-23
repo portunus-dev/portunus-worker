@@ -3,6 +3,9 @@ const { v4: uuidv4 } = require('uuid')
 const deta = require('./db')
 
 // deta Base - users, for UI use
+// TODO: see if this can become a bottleneck at scale
+// in which case we can get the key from KV and use `get` instead of `fetch`
+// or if we transition to use email as key, we can directly `get`
 module.exports.getUser = (email) =>
   deta
     .Base('users')
@@ -14,6 +17,7 @@ module.exports.listTeamUsers = ({ team }) =>
     .Base('users')
     .fetch([{ 'teams?contains': team }, { 'admins?contains': team }], {})
 
+// TODO: email should be unique, maybe transition to email as key?
 module.exports.createUser = async (email) => {
   const user = {
     email,
@@ -30,8 +34,9 @@ module.exports.createUser = async (email) => {
   // TODO: do this "transactionally"
   const dbUser = await deta.Base('users').insert(user)
   // remove deta exclusive fields (such as otp_secret)
-  delete dbUser.otp_secret
-  await USERS.put(user.email, JSON.stringify(dbUser))
+  const kvUser = { ...dbUser }
+  delete kvUser.otp_secret
+  await USERS.put(user.email, JSON.stringify(kvUser))
 
   return dbUser
 }
