@@ -1,7 +1,7 @@
 import { Router } from 'itty-router'
 import { withContent } from 'itty-router-extras'
 
-const {
+import {
   root,
   listTeams,
   createTeam,
@@ -28,9 +28,10 @@ const {
   login,
   getEnv,
   withRequiredName,
-} = require('./handlers')
-const { corsHeaders, respondJSON, respondError } = require('./modules/utils')
-const { withRequireUser } = require('./modules/auth')
+} from './handlers'
+import { corsHeaders, respondJSON, respondError } from './modules/utils'
+import { withRequireUser } from './modules/auth'
+import { withLogging } from './modules/audit'
 
 const router = Router()
 
@@ -117,7 +118,7 @@ router.put('/env', withContent, withRequireUser, updateStageVars)
 router.get('/otp', getOTP)
 router.get('/login', login)
 router.get('/token', getToken) // legacy direct JWT email route
-router.get('/', root)
+router.get('/', withLogging, root)
 
 // 404
 router.all(
@@ -133,5 +134,14 @@ router.all(
 )
 
 addEventListener('fetch', (event) =>
-  event.respondWith(router.handle(event.request).catch(respondError))
+  event.respondWith(
+    router
+      .handle(event.request)
+      .catch(respondError)
+      .finally(() => {
+        if (event.request._log) {
+          console.log(JSON.stringify(event.request._log, null, 2))
+        }
+      })
+  )
 )
