@@ -69,7 +69,7 @@ module.exports.root = ({ headers, cf }) =>
   respondJSON({
     payload: {
       cli: 'pip install -U print-env --pre',
-      'Web UI': 'wip',
+      'Web UI': 'https://portunus.netlify.app',
       language: headers.get('Accept-Language'),
       cf,
     },
