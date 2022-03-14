@@ -35,6 +35,8 @@ import { withLogging } from './modules/audit'
 
 const router = Router()
 
+router.all('*', withLogging)
+
 const withCors = (_) => {
   // TODO: could check in greater detail
   return new Response(null, { headers: { ...corsHeaders } })
@@ -118,7 +120,7 @@ router.put('/env', withContent, withRequireUser, updateStageVars)
 router.get('/otp', getOTP)
 router.get('/login', login)
 router.get('/token', getToken) // legacy direct JWT email route
-router.get('/', withLogging, root)
+router.all('/', root)
 
 // 404
 router.all(
@@ -139,8 +141,15 @@ addEventListener('fetch', (event) =>
       .handle(event.request)
       .catch(respondError)
       .finally(() => {
-        if (event.request._log) {
-          console.log(JSON.stringify(event.request._log, null, 2))
+        const { headers } = event.request
+        if (event.request._log && !headers.get('portunus-no-log')) {
+          const log = {
+            ...event.request._log,
+            user: (event.request.user || {}).email, // TODO: switch to .id once migration is complete
+            timestamp: Date.now(),
+          }
+          // TODO: persist to a dstastore (deta.Base?)
+          console.log(JSON.stringify(log, null, 2))
         }
       })
   )
