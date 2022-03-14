@@ -145,7 +145,7 @@ addEventListener('fetch', (event) =>
         if (event.request._log && !headers.get('portunus-no-log')) {
           const log = {
             ...event.request._log,
-            user: (event.request.user || {}).email, // TODO: switch to .id once migration is complete
+            user: event.request.user,
             timestamp: Date.now(),
           }
           // TODO: persist to a dstastore (deta.Base?)
