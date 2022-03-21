@@ -1,7 +1,13 @@
-module.exports.minimalLog = ({ method, url, query, body }) => ({ method, url, query, body })
+module.exports.minimalLog = ({ method, url, query, body }) => ({
+  method,
+  url,
+  query,
+  body,
+})
 
 module.exports.withLogging = (req) => {
-  if (req._log) { // "singleton"
+  if (req._log) {
+    // "singleton"
     return
   }
   const { cf, headers: _headers } = req
