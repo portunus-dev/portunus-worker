@@ -1,4 +1,4 @@
-module.exports.minimalLog = ({ method, url, query, body }) => ({ method, url, query, body, start: Date.now() })
+module.exports.minimalLog = ({ method, url, query, body }) => ({ method, url, query, body })
 
 module.exports.withLogging = (req) => {
   if (req._log) { // "singleton"
@@ -10,5 +10,5 @@ module.exports.withLogging = (req) => {
   for (const [key, value] of _headers) {
     headers[key] = value
   }
-  req._log = { ...this.minimalLog(req), headers, cf }
+  req._log = { ...this.minimalLog(req), headers, cf, start: Date.now() }
 }
