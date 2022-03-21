@@ -31,7 +31,7 @@ import {
 } from './handlers'
 import { corsHeaders, respondJSON, respondError } from './modules/utils'
 import { withRequireUser } from './modules/auth'
-import { withLogging } from './modules/audit'
+import { withLogging, minimalLog } from './modules/audit'
 
 const router = Router()
 
@@ -141,16 +141,16 @@ addEventListener('fetch', (event) =>
       .handle(event.request)
       .catch(respondError)
       .finally(() => {
-        const { headers } = event.request
-        if (event.request._log && !headers.get('portunus-no-log')) {
-          const log = {
-            ...event.request._log,
-            user: event.request.user,
-            timestamp: Date.now(),
-          }
-          // TODO: persist to a dstastore (deta.Base?)
-          console.log(JSON.stringify(log, null, 2))
+        const log = {
+          // minimal logging
+          user: event.request.user,
+          end: Date.now(),
+          ...minimalLog(event.request),
+          // middleware dictated additional logging
+          ...event.request._log,
         }
+        // TODO: persist to a dstastore (deta.Base?)
+        console.log(JSON.stringify(log, null, 2))
       })
   )
 )
