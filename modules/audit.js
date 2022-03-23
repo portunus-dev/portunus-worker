@@ -81,9 +81,7 @@ module.exports.convertRequestToHumanReadableString = ({
   query,
   params = {},
 }) => {
-  console.log('---> THE api PATH!', apiPath, query, params)
   const text = (URL_METHOD_MAP[apiPath] || {})[method]
-  console.log(text)
   if (text) {
     return `${apiPath} - ${text} - ${getQueryString(query)} ${getParamsString(
       params

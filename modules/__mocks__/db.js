@@ -54,6 +54,14 @@ const TEST_DB = {
       admins: ['test-key'],
     },
   },
+  audit_report: {
+    'team::test-key': {
+      auditHistory: [{ name: '1' }, { name: '2' }],
+    },
+    'user::test-key': {
+      auditHistory: [{ name: '3' }, { name: '4' }],
+    },
+  },
 }
 
 const getMock = jest.fn(async (key, db) => await TEST_DB[db][key])

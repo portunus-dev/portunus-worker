@@ -7,6 +7,7 @@ const {
   updateTeamName,
   updateTeamAudit,
   deleteTeam,
+  getAuditForTeam,
 } = require('../modules/teams')
 
 beforeEach(() => {
@@ -111,5 +112,15 @@ describe('Teams Module', () => {
     expect(USER_STORE[user.email].admins.length).toEqual(1)
     expect(USER_STORE[user.email].teams[0]).toEqual('someTeam')
     expect(USER_STORE[user.email].admins[0]).toEqual('someTeam')
+  })
+  test('getAuditForTeam should return current auditHistory', async () => {
+    const auditHistory = await getAuditForTeam({ team: 'test-key' })
+    expect(deta.getMock).toBeCalledTimes(1)
+    expect(auditHistory.length).toEqual(2)
+  })
+  test('getAuditForTeam should return empty auditHistory', async () => {
+    const auditHistory = await getAuditForTeam({ team: 'does-not-exist' })
+    expect(deta.getMock).toBeCalledTimes(1)
+    expect(auditHistory).toEqual([])
   })
 })

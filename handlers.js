@@ -519,7 +519,6 @@ module.exports.removeUserFromAdmin = async ({
 
 module.exports.deleteUser = async ({ user }) => {
   try {
-    console.log('delete user: ', user)
     await deleteUser(user)
 
     return respondJSON({ payload: { key: user.key } })

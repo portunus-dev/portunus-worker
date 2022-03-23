@@ -150,5 +150,13 @@ module.exports.deleteUser = (user) => {
   ])
 }
 
+module.exports.getAuditForUser = async ({ user }) => {
+  // TODO: other fiels, like
+  const { auditHistory } = (await deta
+    .Base('audit_report')
+    .get('user::' + user)) || { auditHistory: [] }
+  return auditHistory
+}
+
 // Cloudflare Workers KV - USERS, for CLI use
 module.exports.getKVUser = (email) => USERS.get(email, { type: 'json' })
