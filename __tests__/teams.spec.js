@@ -5,6 +5,7 @@ const {
   createTeam,
   listTeams,
   updateTeamName,
+  updateTeamAudit,
   deleteTeam,
 } = require('../modules/teams')
 
@@ -66,6 +67,14 @@ describe('Teams Module', () => {
 
     expect(deta.updateMock).toBeCalledTimes(1)
     expect(deta.TEST_DB.teams[keyWithData].name).toEqual(newName)
+  })
+  test('updateTeamAudit updates and returns key', async () => {
+    const keyWithData = 'test-key'
+    const newValue = 'test1234'
+    await updateTeamAudit({ audit: false, team: keyWithData })
+
+    expect(deta.updateMock).toBeCalledTimes(1)
+    expect(deta.TEST_DB.teams[keyWithData].name).toEqual(newValue)
   })
   test('deleteTeam should delete stages, projects, team and update users', async () => {
     const teamToDelete = 'test-key'

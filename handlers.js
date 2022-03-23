@@ -29,6 +29,7 @@ const {
   listTeams,
   // getTeam,
   updateTeamName,
+  updateTeamAudit,
   deleteTeam,
 } = require('./modules/teams')
 const {
@@ -42,6 +43,8 @@ const {
 const deta = require('./modules/db')
 
 const EMAIL_REGEXP = new RegExp(/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/)
+const BOOLEAN_VALUES = [1, 0, '1', '0', true, false, 'true', 'false']
+const TRUE_VALUES = [1, '1', true, 'true']
 
 // process.env is not avail in workers, direct access like KV namespaces and secrets
 
@@ -135,6 +138,32 @@ module.exports.updateTeamName = async ({ user, content: { team, name } }) => {
       throw new HTTPError('Invalid access: team admin required', 403)
     }
     await updateTeamName({ team, name })
+    return respondJSON({ payload: { key: team } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.updateTeamAudit = async ({ user, content: { team, audit } }) => {
+  try {
+    if (audit === undefined) {
+      throw new HTTPError('Invalid request: audit not supplied', 400)
+    }
+    if (!BOOLEAN_VALUES.includes(audit)) {
+      throw new HTTPError('Invalid request: invalid audit value', 400)
+    }
+
+    if (!team) {
+      throw new HTTPError('Invalid team: team not supplied', 400)
+    }
+
+    if (!user.admins.includes(team)) {
+      throw new HTTPError('Invalid access: team admin required', 403)
+    }
+    await updateTeamAudit({
+      team,
+      audit: TRUE_VALUES.includes(audit) ? true : false,
+    })
     return respondJSON({ payload: { key: team } })
   } catch (err) {
     return respondError(err)
@@ -344,6 +373,26 @@ module.exports.createUser = async ({ content: { email } }) => {
   }
 }
 
+module.exports.updateUserAudit = async ({ user, content: { audit } }) => {
+  try {
+    if (audit === undefined) {
+      throw new HTTPError('Invalid request: audit not supplied', 400)
+    }
+    if (!BOOLEAN_VALUES.includes(audit)) {
+      throw new HTTPError('Invalid request: invalid audit value', 400)
+    }
+
+    const update = { ...user }
+    const booleanAudit = TRUE_VALUES.includes(audit) ? true : false
+    update.audit = booleanAudit
+    await updateUser(user)
+
+    return respondJSON({ payload: { key: user.key, audit: booleanAudit } })
+  } catch (err) {
+    return respondError(err)
+  }
+}
+
 module.exports.addUserToTeam = async ({
   content: { userEmail, team },
   user,
@@ -470,6 +519,7 @@ module.exports.removeUserFromAdmin = async ({
 
 module.exports.deleteUser = async ({ user }) => {
   try {
+    console.log('delete user: ', user)
     await deleteUser(user)
 
     return respondJSON({ payload: { key: user.key } })
@@ -578,12 +628,9 @@ module.exports.login = async ({ query }) => {
   if (!user || !otp) {
     return respondError(new HTTPError('User or OTP not supplied', 400))
   }
-  const {
-    email,
-    jwt_uuid,
-    otp_secret,
-    teams: [defaultTeam],
-  } = (await fetchUser(user)) || { teams: [] }
+  const { email, jwt_uuid, otp_secret } = (await fetchUser(user)) || {
+    teams: [],
+  }
   if (!email || !otp_secret) {
     return respondError(new HTTPError(`${user} not found`, 404))
   }
@@ -591,10 +638,7 @@ module.exports.login = async ({ query }) => {
   if (!isValid) {
     return respondError(new HTTPError('Invalid OTP', 403))
   }
-  const token = jwt.sign(
-    { email, jwt_uuid, team: team || defaultTeam },
-    TOKEN_SECRET
-  )
+  const token = jwt.sign({ email, jwt_uuid }, TOKEN_SECRET)
   return respondJSON({ payload: { jwt: token } })
 }
 
@@ -602,21 +646,14 @@ module.exports.login = async ({ query }) => {
 module.exports.getToken = async ({ query }) => {
   // TODO: need to mimic getEnv to support multiple-team user
   const { user, team } = query
-  const {
-    email,
-    jwt_uuid,
-    teams: [defaultTeam],
-  } = (await getKVUser(user)) || {}
+  const { email, jwt_uuid } = (await getKVUser(user)) || {}
 
   // TODO: where do we generate jwt_uuid initially and how do we update it?
   // if (!jwt_uuid) {
   //   return respondError(new HTTPError(`${user} not found`, 404))
   // }
 
-  const token = jwt.sign(
-    { email, jwt_uuid, team: team || defaultTeam },
-    TOKEN_SECRET
-  )
+  const token = jwt.sign({ email, jwt_uuid }, TOKEN_SECRET)
 
   try {
     await fetch('https://api.sendgrid.com/v3/mail/send', {
