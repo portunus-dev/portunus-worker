@@ -31,16 +31,12 @@ import {
 } from './handlers'
 import { corsHeaders, respondJSON, respondError } from './modules/utils'
 import { withRequireUser } from './modules/auth'
-<<<<<<< HEAD
-import { withLogging, minimalLog } from './modules/audit'
-=======
 import deta from './modules/db'
 import {
   withLogging,
   minimalLog,
   convertRequestToHumanReadableString,
 } from './modules/audit'
->>>>>>> Audit - explanation string and insert logs to deta
 
 const router = Router()
 

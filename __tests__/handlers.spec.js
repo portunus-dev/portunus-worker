@@ -34,6 +34,7 @@ const {
   deleteStage,
   updateStageVars,
   getEnv,
+  getAuditHistory,
 } = require('../handlers')
 
 beforeAll(() => {
@@ -790,6 +791,64 @@ describe('Handlers!', () => {
         user: { teams: [team] },
         query: { team, project, stage },
       })
+      expect(response.status).toEqual(200)
+    })
+  })
+  describe('Audit', () => {
+    test('getAuditHistory - should require type', async () => {
+      const response = await getAuditHistory({ content: {} })
+      expect(response.status).toEqual(400)
+    })
+    test('getAuditHistory - should require type to be "user" or "team"', async () => {
+      const response = await getAuditHistory({ content: { type: 'project' } })
+      expect(response.status).toEqual(400)
+    })
+    test('getAuditHistory - should require key', async () => {
+      const response = await getAuditHistory({
+        content: { type: 'user' },
+      })
+      expect(response.status).toEqual(400)
+    })
+    test('getAuditHistory - should require user to be themselves', async () => {
+      const response = await getAuditHistory({
+        content: {
+          type: 'user',
+          key: 'abc',
+        },
+        user: { key: 'def' },
+      })
+      expect(response.status).toEqual(403)
+    })
+    test('getAuditHistory - should require team member or admin', async () => {
+      const response = await getAuditHistory({
+        content: {
+          type: 'team',
+          key: 'abc',
+        },
+        user: { key: 'abc', teams: ['def'], admins: [] },
+      })
+      expect(response.status).toEqual(403)
+    })
+    test('getAuditHistory - should return team history', async () => {
+      const response = await getAuditHistory({
+        content: {
+          type: 'team',
+          key: 'abc',
+        },
+        user: { key: 'abc', teams: ['abc'], admins: [] },
+      })
+      teamModule.getAuditForTeam.mockResolvedValue({ auditHistory: [] })
+      expect(response.status).toEqual(200)
+    })
+    test('getAuditHistory - should return user history', async () => {
+      const response = await getAuditHistory({
+        content: {
+          type: 'user',
+          key: 'abc',
+        },
+        user: { key: 'abc' },
+      })
+      userModule.getAuditForUser.mockResolvedValue({ auditHistory: [] })
       expect(response.status).toEqual(200)
     })
   })

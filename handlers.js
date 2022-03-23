@@ -16,6 +16,7 @@ const {
   addUserToAdmin,
   removeUserFromAdmin,
   deleteUser,
+  getAuditForUser,
 } = require('./modules/users')
 const {
   createStage,
@@ -31,6 +32,7 @@ const {
   updateTeamName,
   updateTeamAudit,
   deleteTeam,
+  getAuditForTeam,
 } = require('./modules/teams')
 const {
   createProject,
@@ -623,7 +625,7 @@ module.exports.getOTP = async ({ query, url, headers, cf = {} }) => {
 }
 
 module.exports.login = async ({ query }) => {
-  const { user, otp, team } = query
+  const { user, otp } = query
   if (!user || !otp) {
     return respondError(new HTTPError('User or OTP not supplied', 400))
   }
@@ -644,7 +646,7 @@ module.exports.login = async ({ query }) => {
 // legacy direct JWT through email
 module.exports.getToken = async ({ query }) => {
   // TODO: need to mimic getEnv to support multiple-team user
-  const { user, team } = query
+  const { user } = query
   const { email, jwt_uuid } = (await getKVUser(user)) || {}
 
   // TODO: where do we generate jwt_uuid initially and how do we update it?
@@ -673,4 +675,42 @@ module.exports.getToken = async ({ query }) => {
   }
 
   return respondJSON({ payload: { message: `Token sent to ${user}` } })
+}
+
+module.exports.getAuditHistory = async ({ content: { type, key }, user }) => {
+  try {
+    if (!type || !['user', 'team'].includes(type)) {
+      throw new HTTPError('Invalid type: "user" or "team" supported', 400)
+    }
+
+    if (!key) {
+      throw new HTTPError('Invalid key: must be supplied', 400)
+    }
+
+    if (
+      type === 'team' &&
+      !user.admins.includes(key) &&
+      !user.teams.includes(key)
+    ) {
+      throw new HTTPError('Invalid access: team membership required', 403)
+    }
+
+    if (type === 'user' && user.key !== key) {
+      throw new HTTPError(
+        'Invalid access: users can only look at their own logs',
+        403
+      )
+    }
+
+    let auditHistory
+    if (type === 'team') {
+      auditHistory = await getAuditForTeam({ team: key })
+    } else {
+      auditHistory = await getAuditForUser({ user: key })
+    }
+
+    return respondJSON({ auditHistory })
+  } catch (err) {
+    return respondError(err)
+  }
 }
