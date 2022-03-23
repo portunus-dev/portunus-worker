@@ -31,7 +31,16 @@ import {
 } from './handlers'
 import { corsHeaders, respondJSON, respondError } from './modules/utils'
 import { withRequireUser } from './modules/auth'
+<<<<<<< HEAD
 import { withLogging, minimalLog } from './modules/audit'
+=======
+import deta from './modules/db'
+import {
+  withLogging,
+  minimalLog,
+  convertRequestToHumanReadableString,
+} from './modules/audit'
+>>>>>>> Audit - explanation string and insert logs to deta
 
 const router = Router()
 
@@ -140,17 +149,61 @@ addEventListener('fetch', (event) =>
     router
       .handle(event.request)
       .catch(respondError)
-      .finally(() => {
-        const log = {
-          // minimal logging
-          user: event.request.user,
-          end: Date.now(),
-          ...minimalLog(event.request),
-          // middleware dictated additional logging
-          ...event.request._log,
+      .finally(async () => {
+        if (event.request.method !== 'OPTIONS') {
+          const email = event.request.user && event.request.user.email
+          const {
+            team = event.request.user &&
+              event.request.user.teams &&
+              event.request.user.teams[0],
+            project,
+            stage,
+          } = {
+            ...(event.request.query || {}),
+            ...(event.request.content || {}),
+          }
+          const keys = {
+            email,
+            team,
+            project:
+              project && project.indexOf('::') > 0
+                ? project
+                : `${team}::${project}`,
+            stage:
+              stage && stage.indexOf('::') > 0
+                ? stage
+                : `${team}::${project}::${stage}`,
+          }
+
+          const stripped = event.request.url.replace('https://', '')
+          const pathIdx = stripped.indexOf('/')
+          const apiPath =
+            stripped.substring(pathIdx + 1).split('?')[0] +
+            '!'.replace('s!', '').replace('!', '')
+
+          const explanation = convertRequestToHumanReadableString({
+            url: event.request.url,
+            apiPath,
+            method: event.request.method,
+            query: event.request.query,
+            params: event.request.content,
+          })
+
+          const log = {
+            content: event.request.content,
+            api_path: apiPath,
+            explanation,
+            // minimal logging
+            user: event.request.user,
+            end: Date.now(),
+            ...minimalLog(event.request),
+            // middleware dictated additional logging
+            ...event.request._log,
+            // minimal keys required for processing
+            ...keys,
+          }
+          deta.Base('audit_logs').put(log, null, { expireIn: 60 * 24 }) // expireIn seconds
         }
-        // TODO: persist to a dstastore (deta.Base?)
-        console.log(JSON.stringify(log, null, 2))
       })
   )
 )

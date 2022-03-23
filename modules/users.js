@@ -25,6 +25,7 @@ module.exports.createUser = async (email) => {
     teams: [],
     admins: [],
     updated: new Date(),
+    audit: false,
   }
   if (user.jwt_uuid === user.otp_secret) {
     // Note: this shouldn't really happen anyway
