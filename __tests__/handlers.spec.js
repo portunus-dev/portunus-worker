@@ -232,14 +232,18 @@ describe('Handlers!', () => {
       })
       expect(response.status).toEqual(400)
     })
-    test('updateUserAudit - should respond 200', async () => {
-      userModule.updateUser.mockResolvedValue({ key: 'test' })
+    test('updateUserAudit - should respond 200 and update', async () => {
+      let user = { admins: [], preferences: {} }
+      userModule.updateUser.mockImplementationOnce(async (update) => {
+        user = update
+      })
       const response = await updateUserAudit({
-        user: { admins: [] },
+        user,
         content: { audit: '1' },
       })
       expect(response.status).toEqual(200)
       expect(response.getBody().audit).toEqual(true)
+      expect(user.preferences.audit).toEqual(true)
     })
     test('addUserToTeam - should require team', async () => {
       const response = await addUserToTeam({
@@ -796,32 +800,16 @@ describe('Handlers!', () => {
   })
   describe('Audit', () => {
     test('getAuditHistory - should require type', async () => {
-      const response = await getAuditHistory({ content: {} })
+      const response = await getAuditHistory({ query: {} })
       expect(response.status).toEqual(400)
     })
     test('getAuditHistory - should require type to be "user" or "team"', async () => {
-      const response = await getAuditHistory({ content: { type: 'project' } })
+      const response = await getAuditHistory({ query: { type: 'project' } })
       expect(response.status).toEqual(400)
-    })
-    test('getAuditHistory - should require key', async () => {
-      const response = await getAuditHistory({
-        content: { type: 'user' },
-      })
-      expect(response.status).toEqual(400)
-    })
-    test('getAuditHistory - should require user to be themselves', async () => {
-      const response = await getAuditHistory({
-        content: {
-          type: 'user',
-          key: 'abc',
-        },
-        user: { key: 'def' },
-      })
-      expect(response.status).toEqual(403)
     })
     test('getAuditHistory - should require team member or admin', async () => {
       const response = await getAuditHistory({
-        content: {
+        query: {
           type: 'team',
           key: 'abc',
         },
@@ -830,25 +818,27 @@ describe('Handlers!', () => {
       expect(response.status).toEqual(403)
     })
     test('getAuditHistory - should return team history', async () => {
+      teamModule.getAuditForTeam.mockResolvedValue({ auditHistory: [] })
       const response = await getAuditHistory({
-        content: {
+        query: {
           type: 'team',
           key: 'abc',
         },
         user: { key: 'abc', teams: ['abc'], admins: [] },
       })
-      teamModule.getAuditForTeam.mockResolvedValue({ auditHistory: [] })
+
       expect(response.status).toEqual(200)
     })
     test('getAuditHistory - should return user history', async () => {
+      userModule.getAuditForUser.mockResolvedValue({ auditHistory: [] })
       const response = await getAuditHistory({
-        content: {
+        query: {
           type: 'user',
           key: 'abc',
         },
-        user: { key: 'abc' },
+        user: { key: 'abc', admins: [], teams: [] },
       })
-      userModule.getAuditForUser.mockResolvedValue({ auditHistory: [] })
+
       expect(response.status).toEqual(200)
     })
   })

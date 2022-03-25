@@ -6,6 +6,7 @@ totp.options = { step: 60 * 5 } // 5 minutes for the OTPs
 
 const { HTTPError, respondError, respondJSON } = require('./modules/utils')
 const {
+  getUser,
   fetchUser, // TODO deprecated, use getUser
   updateUser,
   getKVUser,
@@ -383,14 +384,21 @@ module.exports.updateUserAudit = async ({ user, content: { audit } }) => {
     if (!BOOLEAN_VALUES.includes(audit)) {
       throw new HTTPError('Invalid request: invalid audit value', 400)
     }
-
-    const update = { ...user }
     const booleanAudit = TRUE_VALUES.includes(audit) ? true : false
-    update.audit = booleanAudit
-    await updateUser(user)
+    // TODO: generic route for user preferences?
+    const update = {
+      ...user,
+      preferences: {
+        ...user.preferences,
+        audit: booleanAudit,
+      },
+    }
+
+    await updateUser(update)
 
     return respondJSON({ payload: { key: user.key, audit: booleanAudit } })
   } catch (err) {
+    console.log('updateUserAuditError', err)
     return respondError(err)
   }
 }
@@ -677,13 +685,13 @@ module.exports.getToken = async ({ query }) => {
   return respondJSON({ payload: { message: `Token sent to ${user}` } })
 }
 
-module.exports.getAuditHistory = async ({ content: { type, key }, user }) => {
+module.exports.getAuditHistory = async ({ query: { type, key }, user }) => {
   try {
     if (!type || !['user', 'team'].includes(type)) {
       throw new HTTPError('Invalid type: "user" or "team" supported', 400)
     }
 
-    if (!key) {
+    if (type === 'team' && !key) {
       throw new HTTPError('Invalid key: must be supplied', 400)
     }
 
@@ -695,22 +703,17 @@ module.exports.getAuditHistory = async ({ content: { type, key }, user }) => {
       throw new HTTPError('Invalid access: team membership required', 403)
     }
 
-    if (type === 'user' && user.key !== key) {
-      throw new HTTPError(
-        'Invalid access: users can only look at their own logs',
-        403
-      )
-    }
-
     let auditHistory
     if (type === 'team') {
       auditHistory = await getAuditForTeam({ team: key })
     } else {
-      auditHistory = await getAuditForUser({ user: key })
+      console.log(user.key)
+      auditHistory = await getAuditForUser({ user: user.key })
     }
 
-    return respondJSON({ auditHistory })
+    return respondJSON({ payload: { auditHistory } })
   } catch (err) {
+    console.log(err)
     return respondError(err)
   }
 }

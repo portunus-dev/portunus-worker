@@ -45,6 +45,7 @@ const URL_METHOD_MAP = {
     GET: 'Fetch for project',
     POST: 'Create',
     DELETE: 'Delete',
+    PUT: 'Update',
   },
   env: {
     GET: 'Fetch for stage',

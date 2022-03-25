@@ -46,12 +46,18 @@ const TEST_DB = {
       email: 'test-email',
       teams: ['test-key', 'someTeam'],
       admins: ['test-key', 'someTeam'],
+      preferences: {
+        audit: true,
+      },
     },
     'test-key2': {
       key: 'test-key2',
       email: 'test-email2',
       teams: ['test-key'],
       admins: ['test-key'],
+      preferences: {
+        audit: false,
+      },
     },
   },
   audit_report: {

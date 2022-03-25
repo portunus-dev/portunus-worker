@@ -28,6 +28,9 @@ import {
   login,
   getEnv,
   withRequiredName,
+  updateTeamAudit,
+  getAuditHistory,
+  updateUserAudit,
 } from './handlers'
 import { corsHeaders, respondJSON, respondError } from './modules/utils'
 import { withRequireUser } from './modules/auth'
@@ -71,11 +74,14 @@ router.put(
   updateTeamName
 )
 
+router.put('/team/audit', withContent, withRequireUser, updateTeamAudit)
+
 router.get('/users', withRequireUser, listUsers)
 router.get('/user', withRequireUser, ({ user }) =>
   respondJSON({ payload: { user } })
 )
 router.post('/user', withContent, createUser)
+router.put('/user/audit', withRequireUser, withContent, updateUserAudit)
 router.put('/user/team', withContent, withRequireUser, addUserToTeam)
 router.delete('/user/team', withContent, withRequireUser, removeUserFromTeam)
 router.put('/user/admin', withContent, withRequireUser, addUserToAdmin)
@@ -120,6 +126,9 @@ router.put('/env', withContent, withRequireUser, updateStageVars)
 // router.put('/var', createVar)
 // router.put('/var/update', updateVar)
 // router.delete('/var/delete', deleteVar)
+
+// auditing
+router.get('/audit', withRequireUser, getAuditHistory)
 
 // auth
 router.get('/otp', getOTP)
