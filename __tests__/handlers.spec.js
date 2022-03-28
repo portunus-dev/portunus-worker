@@ -9,15 +9,19 @@ jest.mock('../modules/projects')
 const projectModule = require('../modules/projects')
 jest.mock('../modules/envs')
 const envModule = require('../modules/envs')
+jest.mock('../modules/audit')
+const auditModule = require('../modules/audit')
 
 const ResponseTest = require('../ResponseTest')
 
 const {
   listAll,
   updateTeamName,
+  updateTeamAudit,
   deleteTeam,
   listUsers,
   createUser,
+  updateUserAudit,
   addUserToTeam,
   removeUserFromTeam,
   addUserToAdmin,
@@ -32,6 +36,7 @@ const {
   deleteStage,
   updateStageVars,
   getEnv,
+  getAuditHistory,
 } = require('../handlers')
 
 beforeAll(() => {
@@ -114,6 +119,46 @@ describe('Handlers!', () => {
       expect(response.getBody().key).toEqual(team)
       expect(response.status).toEqual(200)
     })
+    test('updateTeamAudit - should require audit parameter', async () => {
+      const team = 'test'
+      const response = await updateTeamAudit({
+        user: { admins: [] },
+        content: { team },
+      })
+      expect(response.status).toEqual(400)
+    })
+    test('updateTeamAudit - should require boolean value', async () => {
+      const team = 'test'
+      const response = await updateTeamAudit({
+        user: { admins: [] },
+        content: { team, audit: 'test' },
+      })
+      expect(response.status).toEqual(400)
+    })
+    test('updateTeamAudit - should require team', async () => {
+      const response = await updateTeamAudit({
+        user: {},
+        content: { audit: true },
+      })
+      expect(response.status).toEqual(400)
+    })
+    test('updateTeamAudit - should require team admin', async () => {
+      const team = 'test'
+      const response = await updateTeamAudit({
+        user: { admins: [] },
+        content: { team, audit: true },
+      })
+      expect(response.status).toEqual(403)
+    })
+    test('updateTeamAudit - should return 200 response', async () => {
+      const team = 'test'
+      const response = await updateTeamAudit({
+        user: { admins: [team] },
+        content: { team, audit: true },
+      })
+      expect(response.getBody().key).toEqual(team)
+      expect(response.status).toEqual(200)
+    })
     test('deleteTeam - should require team', async () => {
       const response = await deleteTeam({ user: {}, content: {} })
       expect(response.status).toEqual(400)
@@ -174,6 +219,33 @@ describe('Handlers!', () => {
         content: { email },
       })
       expect(response.status).toEqual(200)
+    })
+    test('updateUserAudit - should require audit parameter', async () => {
+      const response = await updateUserAudit({
+        user: { admins: [] },
+        content: {},
+      })
+      expect(response.status).toEqual(400)
+    })
+    test('updateUserAudit - should require boolean value', async () => {
+      const response = await updateUserAudit({
+        user: { admins: [] },
+        content: { audit: 'test' },
+      })
+      expect(response.status).toEqual(400)
+    })
+    test('updateUserAudit - should respond 200 and update', async () => {
+      let user = { admins: [], preferences: {} }
+      userModule.updateUser.mockImplementationOnce(async (update) => {
+        user = update
+      })
+      const response = await updateUserAudit({
+        user,
+        content: { audit: '1' },
+      })
+      expect(response.status).toEqual(200)
+      expect(response.getBody().audit).toEqual(true)
+      expect(user.preferences.audit).toEqual(true)
     })
     test('addUserToTeam - should require team', async () => {
       const response = await addUserToTeam({
@@ -725,6 +797,50 @@ describe('Handlers!', () => {
         user: { teams: [team] },
         query: { team, project, stage },
       })
+      expect(response.status).toEqual(200)
+    })
+  })
+  describe('Audit', () => {
+    test('getAuditHistory - should require type', async () => {
+      const response = await getAuditHistory({ query: {} })
+      expect(response.status).toEqual(400)
+    })
+    test('getAuditHistory - should require type to be "user" or "team"', async () => {
+      const response = await getAuditHistory({ query: { type: 'project' } })
+      expect(response.status).toEqual(400)
+    })
+    test('getAuditHistory - should require team member or admin', async () => {
+      const response = await getAuditHistory({
+        query: {
+          type: 'team',
+          key: 'abc',
+        },
+        user: { key: 'abc', teams: ['def'], admins: [] },
+      })
+      expect(response.status).toEqual(403)
+    })
+    test('getAuditHistory - should return team history', async () => {
+      auditModule.getAuditHistory.mockResolvedValue({ auditHistory: [] })
+      const response = await getAuditHistory({
+        query: {
+          type: 'team',
+          key: 'abc',
+        },
+        user: { key: 'abc', teams: ['abc'], admins: [] },
+      })
+
+      expect(response.status).toEqual(200)
+    })
+    test('getAuditHistory - should return user history', async () => {
+      auditModule.getAuditHistory.mockResolvedValue({ auditHistory: [] })
+      const response = await getAuditHistory({
+        query: {
+          type: 'user',
+          key: 'abc',
+        },
+        user: { key: 'abc', admins: [], teams: [] },
+      })
+
       expect(response.status).toEqual(200)
     })
   })

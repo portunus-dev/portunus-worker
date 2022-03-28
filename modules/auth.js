@@ -27,9 +27,7 @@ const verifyUser = async (access) => {
   if (user.jwt_uuid !== access.jwt_uuid) {
     throw new HTTPError('Invalid portunus-jwt: UUID mismatch', 403)
   }
-  if (access.team && !user.teams.includes(access.team)) {
-    throw new HTTPError('Invalid portunus-jwt: team mismatch', 403)
-  }
+
   return user
 }
 

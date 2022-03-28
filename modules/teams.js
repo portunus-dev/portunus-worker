@@ -12,7 +12,7 @@ const { deleteProject } = require('./projects')
 
 module.exports.createTeam = async ({ name, user }) => {
   // create team metadata in deta Base
-  const { key: team } = await deta.Base('teams').put({ name })
+  const { key: team } = await deta.Base('teams').put({ name, audit: false })
 
   await addUserToTeam({ user, team })
   // add team, so that .teams is not overwritten by stale user
@@ -46,6 +46,15 @@ module.exports.updateTeamName = ({ team, name }) => {
   deta.Base('teams').update(
     {
       name,
+    },
+    team
+  )
+}
+
+module.exports.updateTeamAudit = ({ team, audit }) => {
+  deta.Base('teams').update(
+    {
+      audit,
     },
     team
   )
