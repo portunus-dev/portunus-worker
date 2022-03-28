@@ -154,7 +154,7 @@ addEventListener('fetch', (event) =>
     router
       .handle(event.request)
       .catch(respondError)
-      .finally(async () => {
+      .finally(() => {
         if (event.request.method !== 'OPTIONS') {
           const email = event.request.user && event.request.user.email
           const {
@@ -203,7 +203,9 @@ addEventListener('fetch', (event) =>
             // minimal keys required for processing
             ...keys,
           }
-          deta.Base('audit_logs').put(log, null, { expireIn: 60 * 24 }) // expireIn seconds
+          return deta
+            .Base('audit_logs')
+            .put(log, null, { expireIn: 60 * 60 * 24 }) // 1 day expireIn
         }
       })
   )
