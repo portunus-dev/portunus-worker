@@ -6,7 +6,6 @@ totp.options = { step: 60 * 5 } // 5 minutes for the OTPs
 
 const { HTTPError, respondError, respondJSON } = require('./modules/utils')
 const {
-  getUser,
   fetchUser, // TODO deprecated, use getUser
   updateUser,
   getKVUser,

@@ -61,10 +61,10 @@ const getQueryString = (query) => {
 }
 
 const getParamsString = (params) =>
-  Object.entries(params || {})
+  Object.entries(params)
     .map(([k, v]) => {
       if (k === 'updates') {
-        return `${k}: add[${Object.keys(v.add).join(',')}], edit[${Object.keys(
+        return `add[${Object.keys(v.add).join(',')}], edit[${Object.keys(
           v.edit
         ).join(',')}], remove[${v.remove.join(',')}]`
       }
@@ -73,14 +73,14 @@ const getParamsString = (params) =>
     .join(', ')
 
 module.exports.convertRequestToHumanReadableString = ({
+  url,
   apiPath,
   method,
-  query,
   params = {},
 }) => {
   const text = (URL_METHOD_MAP[apiPath] || {})[method]
   if (text) {
-    return `${apiPath} - ${text} - ${getQueryString(query)} ${getParamsString(
+    return `${apiPath} - ${text} - ${getQueryString(url)} - ${getParamsString(
       params
     )}`
   }

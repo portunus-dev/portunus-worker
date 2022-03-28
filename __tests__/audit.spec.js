@@ -1,6 +1,10 @@
 jest.mock('../modules/db')
 const deta = require('../modules/db')
-const { getAuditHistory } = require('../modules/audit')
+const {
+  withLogging,
+  convertRequestToHumanReadableString,
+  getAuditHistory,
+} = require('../modules/audit')
 
 beforeEach(() => {
   deta.insertMock.mockClear()
@@ -12,6 +16,35 @@ beforeEach(() => {
 })
 
 describe('Audit Module', () => {
+  test('withLogging should return if req._log already exists', () => {
+    const req = { _log: true }
+    withLogging(req)
+    expect(req._log).toEqual(true)
+  })
+  test('withLogging should construct _log object', () => {
+    const req = { cf: { a: 1 }, headers: [['b', 2]] }
+    withLogging(req)
+    // only enforce cf & header inclusion for now
+    expect(req._log.cf.a).toEqual(1)
+    expect(req._log.headers.b).toEqual(2)
+  })
+  test('convertToHumanReadableString should return Unknown Operation', () => {
+    const humanReadableString = convertRequestToHumanReadableString({
+      method: 'NOT FOUND',
+    })
+    expect(humanReadableString).toEqual('Unknown operation')
+  })
+  test('convertToHumanReadableString should format string for known operation', () => {
+    const humanReadableString = convertRequestToHumanReadableString({
+      apiPath: 'env',
+      method: 'PUT',
+      url: 'https://www.test.com/test?a=1&b=2',
+      params: { updates: { add: {}, edit: {}, remove: [] }, c: 3 },
+    })
+    expect(humanReadableString).toEqual(
+      'env - Update for stage - ?a=1&b=2 - add[], edit[], remove[], c: 3'
+    )
+  })
   test('getAuditHistory should return current auditHistory for user', async () => {
     const auditHistory = await getAuditHistory({
       type: 'user',
