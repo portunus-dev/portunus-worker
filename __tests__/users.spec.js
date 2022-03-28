@@ -8,6 +8,7 @@ const {
   addUserToAdmin,
   removeUserFromAdmin,
   deleteUser,
+  getAuditForUser,
 } = require('../modules/users')
 
 beforeEach(() => {

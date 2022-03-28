@@ -1,7 +1,7 @@
 import { Router } from 'itty-router'
 import { withContent } from 'itty-router-extras'
 
-const {
+import {
   root,
   listTeams,
   createTeam,
@@ -28,11 +28,22 @@ const {
   login,
   getEnv,
   withRequiredName,
-} = require('./handlers')
-const { corsHeaders, respondJSON, respondError } = require('./modules/utils')
-const { withRequireUser } = require('./modules/auth')
+  updateTeamAudit,
+  getAuditHistory,
+  updateUserAudit,
+} from './handlers'
+import { corsHeaders, respondJSON, respondError } from './modules/utils'
+import { withRequireUser } from './modules/auth'
+import deta from './modules/db'
+import {
+  withLogging,
+  minimalLog,
+  convertRequestToHumanReadableString,
+} from './modules/audit'
 
 const router = Router()
+
+router.all('*', withLogging)
 
 const withCors = (_) => {
   // TODO: could check in greater detail
@@ -63,11 +74,14 @@ router.put(
   updateTeamName
 )
 
+router.put('/team/audit', withContent, withRequireUser, updateTeamAudit)
+
 router.get('/users', withRequireUser, listUsers)
 router.get('/user', withRequireUser, ({ user }) =>
   respondJSON({ payload: { user } })
 )
 router.post('/user', withContent, createUser)
+router.put('/user/audit', withRequireUser, withContent, updateUserAudit)
 router.put('/user/team', withContent, withRequireUser, addUserToTeam)
 router.delete('/user/team', withContent, withRequireUser, removeUserFromTeam)
 router.put('/user/admin', withContent, withRequireUser, addUserToAdmin)
@@ -113,11 +127,14 @@ router.put('/env', withContent, withRequireUser, updateStageVars)
 // router.put('/var/update', updateVar)
 // router.delete('/var/delete', deleteVar)
 
+// auditing
+router.get('/audit', withRequireUser, getAuditHistory)
+
 // auth
 router.get('/otp', getOTP)
 router.get('/login', login)
 router.get('/token', getToken) // legacy direct JWT email route
-router.get('/', root)
+router.all('/', root)
 
 // 404
 router.all(
@@ -133,5 +150,63 @@ router.all(
 )
 
 addEventListener('fetch', (event) =>
-  event.respondWith(router.handle(event.request).catch(respondError))
+  event.respondWith(
+    router
+      .handle(event.request)
+      .catch(respondError)
+      .finally(() => {
+        if (event.request.method !== 'OPTIONS') {
+          const email = event.request.user && event.request.user.email
+          const {
+            team = event.request.user &&
+              event.request.user.teams &&
+              event.request.user.teams[0],
+            project,
+            stage,
+          } = {
+            ...(event.request.query || {}),
+            ...(event.request.content || {}),
+          }
+          const keys = {
+            email,
+            team,
+            project:
+              project && project.indexOf('::') > 0
+                ? project
+                : `${team}::${project}`,
+            stage:
+              stage && stage.indexOf('::') > 0
+                ? stage
+                : `${team}::${project}::${stage}`,
+          }
+
+          const { pathname: apiPath } = new URL(event.request.url)
+
+          const explanation = convertRequestToHumanReadableString({
+            url: event.request.url,
+            apiPath,
+            method: event.request.method,
+            query: event.request.query,
+            params: event.request.content,
+          })
+
+          const log = {
+            content: event.request.content,
+            api_path: apiPath,
+            explanation,
+            // minimal logging
+            user: event.request.user,
+            end: Date.now(),
+            ...minimalLog(event.request),
+            // middleware dictated additional logging
+            ...event.request._log,
+            // minimal keys required for processing
+            ...keys,
+          }
+          return deta
+            .Base('audit_logs')
+            .put(log, null, { expireIn: 60 * 60 * 24 }) // 1 day expireIn
+        }
+      })
+  )
 )
