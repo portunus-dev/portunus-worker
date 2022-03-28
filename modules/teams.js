@@ -89,11 +89,3 @@ module.exports.deleteTeam = async ({ team }) => {
 
   return team
 }
-
-module.exports.getAuditForTeam = async ({ team }) => {
-  // TODO: other fiels, like
-  const { auditHistory } = (await deta
-    .Base('audit_report')
-    .get('team::' + team)) || { auditHistory: [] }
-  return auditHistory
-}

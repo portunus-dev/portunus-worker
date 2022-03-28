@@ -1,3 +1,5 @@
+const deta = require('./db')
+
 module.exports.minimalLog = ({ method, url, query, body }) => ({
   method,
   url,
@@ -53,28 +55,22 @@ const URL_METHOD_MAP = {
   },
 }
 
-const getQueryString = (query) =>
-  Object.entries(query).length
-    ? Object.entries(query)
-        .map(([k, v]) => `${k}: ${v}`)
-        .join(', ')
-    : ''
+const getQueryString = (query) => {
+  const url = new URL(query)
+  return url.search
+}
 
 const getParamsString = (params) =>
-  Object.entries(params).length
-    ? Object.entries(params)
-        .map(([k, v]) => {
-          if (k === 'updates') {
-            return `${k}: add[${Object.keys(v.add).join(
-              ','
-            )}], edit[${Object.keys(v.edit).join(',')}], remove[${v.remove.join(
-              ','
-            )}]`
-          }
-          return `${k}: ${v}`
-        })
-        .join(', ')
-    : ''
+  Object.entries(params || {})
+    .map(([k, v]) => {
+      if (k === 'updates') {
+        return `${k}: add[${Object.keys(v.add).join(',')}], edit[${Object.keys(
+          v.edit
+        ).join(',')}], remove[${v.remove.join(',')}]`
+      }
+      return `${k}: ${v}`
+    })
+    .join(', ')
 
 module.exports.convertRequestToHumanReadableString = ({
   apiPath,
@@ -90,4 +86,11 @@ module.exports.convertRequestToHumanReadableString = ({
   }
 
   return 'Unknown operation'
+}
+
+module.exports.getAuditHistory = async ({ type, key }) => {
+  // TODO: other fiels, like
+  const { auditHistory = [] } =
+    (await deta.Base('audit_report').get(`${type}::` + key)) || {}
+  return auditHistory
 }

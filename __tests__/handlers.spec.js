@@ -9,6 +9,8 @@ jest.mock('../modules/projects')
 const projectModule = require('../modules/projects')
 jest.mock('../modules/envs')
 const envModule = require('../modules/envs')
+jest.mock('../modules/audit')
+const auditModule = require('../modules/audit')
 
 const ResponseTest = require('../ResponseTest')
 
@@ -818,7 +820,7 @@ describe('Handlers!', () => {
       expect(response.status).toEqual(403)
     })
     test('getAuditHistory - should return team history', async () => {
-      teamModule.getAuditForTeam.mockResolvedValue({ auditHistory: [] })
+      auditModule.getAuditHistory.mockResolvedValue({ auditHistory: [] })
       const response = await getAuditHistory({
         query: {
           type: 'team',
@@ -830,7 +832,7 @@ describe('Handlers!', () => {
       expect(response.status).toEqual(200)
     })
     test('getAuditHistory - should return user history', async () => {
-      userModule.getAuditForUser.mockResolvedValue({ auditHistory: [] })
+      auditModule.getAuditHistory.mockResolvedValue({ auditHistory: [] })
       const response = await getAuditHistory({
         query: {
           type: 'user',

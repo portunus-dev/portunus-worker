@@ -17,7 +17,6 @@ const {
   addUserToAdmin,
   removeUserFromAdmin,
   deleteUser,
-  getAuditForUser,
 } = require('./modules/users')
 const {
   createStage,
@@ -33,7 +32,6 @@ const {
   updateTeamName,
   updateTeamAudit,
   deleteTeam,
-  getAuditForTeam,
 } = require('./modules/teams')
 const {
   createProject,
@@ -42,6 +40,7 @@ const {
   updateProjectName,
   deleteProject,
 } = require('./modules/projects')
+const { getAuditHistory } = require('./modules/audit')
 
 const deta = require('./modules/db')
 
@@ -165,7 +164,7 @@ module.exports.updateTeamAudit = async ({ user, content: { team, audit } }) => {
     }
     await updateTeamAudit({
       team,
-      audit: TRUE_VALUES.includes(audit) ? true : false,
+      audit: TRUE_VALUES.includes(audit),
     })
     return respondJSON({ payload: { key: team } })
   } catch (err) {
@@ -398,7 +397,7 @@ module.exports.updateUserAudit = async ({ user, content: { audit } }) => {
 
     return respondJSON({ payload: { key: user.key, audit: booleanAudit } })
   } catch (err) {
-    console.log('updateUserAuditError', err)
+    console.error('updateUserAuditError', err)
     return respondError(err)
   }
 }
@@ -691,7 +690,7 @@ module.exports.getAuditHistory = async ({ query: { type, key }, user }) => {
       throw new HTTPError('Invalid type: "user" or "team" supported', 400)
     }
 
-    if (type === 'team' && !key) {
+    if (type !== 'user' && !key) {
       throw new HTTPError('Invalid key: must be supplied', 400)
     }
 
@@ -703,17 +702,14 @@ module.exports.getAuditHistory = async ({ query: { type, key }, user }) => {
       throw new HTTPError('Invalid access: team membership required', 403)
     }
 
-    let auditHistory
-    if (type === 'team') {
-      auditHistory = await getAuditForTeam({ team: key })
-    } else {
-      console.log(user.key)
-      auditHistory = await getAuditForUser({ user: user.key })
-    }
+    const auditHistory = await getAuditHistory({
+      type,
+      key: type !== 'user' ? key : user.key,
+    })
 
     return respondJSON({ payload: { auditHistory } })
   } catch (err) {
-    console.log(err)
+    console.error('getAuditHistoryError', err)
     return respondError(err)
   }
 }

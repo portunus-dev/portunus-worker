@@ -180,11 +180,7 @@ addEventListener('fetch', (event) =>
                 : `${team}::${project}::${stage}`,
           }
 
-          const stripped = event.request.url.replace('https://', '')
-          const pathIdx = stripped.indexOf('/')
-          const apiPath =
-            stripped.substring(pathIdx + 1).split('?')[0] +
-            '!'.replace('s!', '').replace('!', '')
+          const { pathname: apiPath } = new URL(event.request.url)
 
           const explanation = convertRequestToHumanReadableString({
             url: event.request.url,

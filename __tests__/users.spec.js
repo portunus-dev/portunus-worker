@@ -160,14 +160,4 @@ describe('Users Module', () => {
     expect(DETA[user.key]).toBeUndefined()
     expect(USER_STORE[user.email]).toBeUndefined()
   })
-  test('getAuditForUser should return current auditHistory', async () => {
-    const auditHistory = await getAuditForUser({ user: 'test-key' })
-    expect(deta.getMock).toBeCalledTimes(1)
-    expect(auditHistory.length).toEqual(2)
-  })
-  test('getAuditForUser should return empty auditHistory', async () => {
-    const auditHistory = await getAuditForUser({ user: 'does-not-exist' })
-    expect(deta.getMock).toBeCalledTimes(1)
-    expect(auditHistory).toEqual([])
-  })
 })
