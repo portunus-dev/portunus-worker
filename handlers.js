@@ -43,7 +43,10 @@ const { getAuditHistory } = require('./modules/audit')
 
 const deta = require('./modules/db')
 
-const EMAIL_REGEXP = new RegExp(/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/)
+// W3C email regex
+const EMAIL_REGEXP = new RegExp(
+  /^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/
+)
 const BOOLEAN_VALUES = [1, 0, '1', '0', true, false, 'true', 'false']
 const TRUE_VALUES = [1, '1', true, 'true']
 
