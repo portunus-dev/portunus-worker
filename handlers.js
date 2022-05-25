@@ -421,10 +421,10 @@ module.exports.addUserToTeam = async ({
       throw new HTTPError('Invalid access: team admin required', 403)
     }
 
-    const kvUser = await USERS.get(userEmail, { type: 'json' })
+    let kvUser = await USERS.get(userEmail, { type: 'json' })
 
     if (!kvUser) {
-      throw new HTTPError('Invalid user: user not found', 400)
+      kvUser = await createUser(userEmail, { getKVUser: true })
     }
 
     await addUserToTeam({ team, user: kvUser })
