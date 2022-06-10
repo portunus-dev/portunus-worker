@@ -8,7 +8,7 @@ const userModule = require('../modules/users')
 jest.mock('../modules/projects')
 const projectModule = require('../modules/projects')
 jest.mock('../modules/envs')
-const envModule = require('../modules/envs')
+// const envModule = require('../modules/envs')
 jest.mock('../modules/audit')
 const auditModule = require('../modules/audit')
 
@@ -26,7 +26,7 @@ const {
   removeUserFromTeam,
   addUserToAdmin,
   removeUserFromAdmin,
-  deleteUser,
+  // deleteUser,
   listProjects,
   createProject,
   updateProjectName,
@@ -83,7 +83,7 @@ describe('Handlers!', () => {
           items: projectList.filter((o) => o.team === query.team),
         }
       })
-      .mockImplementationOnce(async (query) => {
+      .mockImplementationOnce(async (_) => {
         return {
           items: stageList.filter((o) => o.project === project1.key),
         }
@@ -295,7 +295,7 @@ describe('Handlers!', () => {
 
       expect(response.status).toEqual(403)
     })
-    test('addUserToTeam - should require valid USERS entry', async () => {
+    test('addUserToTeam - creates new user if not found', async () => {
       const userEmail = 'test@test.com'
       const team = 'newTeam'
       const user = {
@@ -309,7 +309,7 @@ describe('Handlers!', () => {
         user,
       })
 
-      expect(response.status).toEqual(400)
+      expect(response.status).toEqual(200)
     })
     test('addUserToTeam - should respond 200', async () => {
       const userEmail = 'test@test.com'
@@ -580,6 +580,8 @@ describe('Handlers!', () => {
         content: { userEmail, team },
         user,
       })
+
+      expect(response.status).toEqual(200)
     })
   })
 

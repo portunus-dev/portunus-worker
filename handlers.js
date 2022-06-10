@@ -43,7 +43,10 @@ const { getAuditHistory } = require('./modules/audit')
 
 const deta = require('./modules/db')
 
-const EMAIL_REGEXP = new RegExp(/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/)
+// W3C email regex
+const EMAIL_REGEXP = new RegExp(
+  /^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/
+)
 const BOOLEAN_VALUES = [1, 0, '1', '0', true, false, 'true', 'false']
 const TRUE_VALUES = [1, '1', true, 'true']
 
@@ -418,10 +421,10 @@ module.exports.addUserToTeam = async ({
       throw new HTTPError('Invalid access: team admin required', 403)
     }
 
-    const kvUser = await USERS.get(userEmail, { type: 'json' })
+    let kvUser = await USERS.get(userEmail, { type: 'json' })
 
     if (!kvUser) {
-      throw new HTTPError('Invalid user: user not found', 400)
+      kvUser = await createUser(userEmail, { getKVUser: true })
     }
 
     await addUserToTeam({ team, user: kvUser })

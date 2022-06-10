@@ -17,7 +17,7 @@ module.exports.listTeamUsers = ({ team }) =>
     .Base('users')
     .fetch([{ 'teams?contains': team }, { 'admins?contains': team }], {})
 
-module.exports.createUser = async (email) => {
+module.exports.createUser = async (email, { getKVUser = false } = {}) => {
   const user = {
     email,
     jwt_uuid: uuidv4(),
@@ -38,7 +38,7 @@ module.exports.createUser = async (email) => {
   delete kvUser.otp_secret
   await USERS.put(user.email, JSON.stringify(kvUser))
 
-  return dbUser
+  return getKVUser ? kvUser : dbUser
 }
 
 module.exports.updateUser = (user) => {
