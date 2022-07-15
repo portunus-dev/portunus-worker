@@ -7,20 +7,20 @@
     "test": "jest",
     "format": "prettier --write '**/*.{js,css,jsone,md}'",
     "lint": "eslint *.js modules/*.js",
-    "dev": "env $(print-env) npx wrangler dev"
+    "dev": "npx wrangler dev"
   },
   "author": "Runzhou Li (woozyking) <runzhou.li@gmail.com>",
   "license": "ISC",
   "devDependencies": {
-    "@cloudflare/wrangler": "^1.19.5",
     "eslint": "^8.5.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-prettier": "^4.0.0",
     "jest": "^27.4.5",
-    "prettier": "^2.2.1"
+    "prettier": "^2.2.1",
+    "wrangler": "^2.0.21"
   },
   "dependencies": {
-    "deta-worker": "^0.2.0-alpha",
+    "deta": "^1.1.0",
     "eslint-plugin-jest": "^25.3.4",
     "itty-router": "^2.5.2",
     "itty-router-extras": "^0.4.2",

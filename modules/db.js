@@ -1,3 +1,3 @@
-const { Deta } = require('deta-worker')
+const { Deta } = require('deta')
 
 module.exports = Deta(DETA_KEY)
