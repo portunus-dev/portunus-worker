@@ -1,9 +1,6 @@
 name = "portunus-worker"
-type = "webpack"
 account_id = "ae0efcc5352882cf6f1ac3a3a40645ba"
 workers_dev = true
-route = ""
-zone_id = ""
 compatibility_date = "2021-11-29"
 kv_namespaces = [
     # USERS_DEV (id and preview_id)
@@ -11,6 +8,8 @@ kv_namespaces = [
     # KV_DEV (id), KV_PREVIEW (preview_id: 09f9d1a399dc4032a5d7f561e577872a)
     { binding = "KV", id = "99aca84159ad4e7eb3f3048611680dd8", preview_id = "99aca84159ad4e7eb3f3048611680dd8" }
 ]
+main = "index.js"
+# node_compat = true
 
 # [secrets]
 # TOKEN_SECRET

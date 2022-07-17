@@ -12,11 +12,13 @@ module.exports.HTTPError = class extends Error {
   }
 }
 
-module.exports.respondError = (err) =>
-  new Response(JSON.stringify({ message: err.message }), {
+module.exports.respondError = (err) => {
+  console.error(err)
+  return new Response(JSON.stringify({ message: err.message }), {
     headers: { ...this.corsHeaders, 'content-type': 'application/json' },
     status: err.status || 500,
   })
+}
 
 module.exports.respondJSON = ({ payload, status = 200, headers = {} }) =>
   new Response(JSON.stringify(payload), {
