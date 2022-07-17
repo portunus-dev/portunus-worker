@@ -9,7 +9,7 @@ kv_namespaces = [
     { binding = "KV", id = "99aca84159ad4e7eb3f3048611680dd8", preview_id = "99aca84159ad4e7eb3f3048611680dd8" }
 ]
 main = "index.js"
-node_compat = true
+# node_compat = true
 
 # [secrets]
 # TOKEN_SECRET

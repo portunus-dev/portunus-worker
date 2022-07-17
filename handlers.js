@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken')
+const jose = require('jose')
 const { totp } = require('otplib')
 const { v4: uuidv4 } = require('uuid')
 
@@ -648,7 +648,7 @@ module.exports.login = async ({ query }) => {
   if (!isValid) {
     return respondError(new HTTPError('Invalid OTP', 403))
   }
-  const token = jwt.sign({ email, jwt_uuid }, TOKEN_SECRET)
+  const token = await new jose.SignJWT({ email, jwt_uuid }).sign(TOKEN_SECRET)
   return respondJSON({ payload: { jwt: token } })
 }
 
@@ -663,7 +663,7 @@ module.exports.getToken = async ({ query }) => {
   //   return respondError(new HTTPError(`${user} not found`, 404))
   // }
 
-  const token = jwt.sign({ email, jwt_uuid }, TOKEN_SECRET)
+  const token = await new jose.SignJWT({ email, jwt_uuid }).sign(TOKEN_SECRET)
 
   try {
     await fetch('https://api.sendgrid.com/v3/mail/send', {

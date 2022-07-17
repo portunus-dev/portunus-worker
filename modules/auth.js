@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken')
+const jose = require('jose')
 
 const { HTTPError, respondError } = require('./utils')
 const { getKVUser } = require('./users')
@@ -12,7 +12,8 @@ const verifyJWT = (headers) => {
   }
   let access = {}
   try {
-    access = jwt.verify(token, TOKEN_SECRET)
+    const { payload } = jose.jwtVerify(token, TOKEN_SECRET)
+    access = payload
   } catch (_) {
     throw new HTTPError('Invalid portunus-jwt', 403)
   }
