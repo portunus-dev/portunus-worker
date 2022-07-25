@@ -31,6 +31,7 @@ import {
   updateTeamAudit,
   getAuditHistory,
   updateUserAudit,
+  updateUserKey,
 } from './handlers'
 import { corsHeaders, respondJSON, respondError } from './modules/utils'
 import { withRequireUser } from './modules/auth'
@@ -82,6 +83,7 @@ router.get('/user', withRequireUser, ({ user }) =>
 )
 router.post('/user', withContent, createUser)
 router.put('/user/audit', withRequireUser, withContent, updateUserAudit)
+router.put('/user/key', withRequireUser, withContent, updateUserKey)
 router.put('/user/team', withContent, withRequireUser, addUserToTeam)
 router.delete('/user/team', withContent, withRequireUser, removeUserFromTeam)
 router.put('/user/admin', withContent, withRequireUser, addUserToAdmin)

@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken')
 const { totp } = require('otplib')
 const { v4: uuidv4 } = require('uuid')
+const openpgp = require('openpgp')
 
 totp.options = { step: 60 * 5 } // 5 minutes for the OTPs
 
@@ -377,6 +378,26 @@ module.exports.createUser = async ({ content: { email } }) => {
   }
 }
 
+module.exports.updateUserKey = async ({ user, content: { public_key } }) => {
+  try {
+    if (public_key === undefined) {
+      throw new HTTPError('Invalid request: public_key not supplied', 400)
+    }
+
+    const update = {
+      ...user,
+      public_key,
+    }
+
+    await updateUser(update)
+
+    return respondJSON({ payload: { key: user.key, public_key } })
+  } catch (err) {
+    console.error('updateUserKeyError', err)
+    return respondError(err)
+  }
+}
+
 module.exports.updateUserAudit = async ({ user, content: { audit } }) => {
   try {
     if (audit === undefined) {
@@ -545,7 +566,9 @@ module.exports.getEnv = async ({ user, query }) => {
       team = user.teams[0], // TODO: backward compatibility
       project: p,
       stage,
+      ui = false,
     } = query
+
     if (!p) {
       throw new HTTPError('Invalid request: project not supplied', 400)
     }
@@ -556,11 +579,41 @@ module.exports.getEnv = async ({ user, query }) => {
     if (!team || !user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
-    const vars = (await getKVEnvs({ team, p, stage })) || {}
+
+    // default to CLI use with no encryption
+    let vars = (await getKVEnvs({ team, p, stage })) || {}
+    let encrypted = false
+
+    if (ui) {
+      // trim values for UI
+      vars = Object.keys(vars).reduce((agg, k) => ({ ...agg, [k]: '' }), {})
+    } else if (user.public_key) {
+      encrypted = true
+      console.log('trying to encrypt!', user.public_key)
+
+      const publicKey = await openpgp.readKey({
+        armoredKey: user.public_key,
+      })
+
+      // if we want to sign ourselves for verification?
+
+      // const privateKey = await openpgp.decryptKey({
+      //     privateKey: await openpgp.readPrivateKey({ armoredKey: privateKeyArmored }),
+      //     passphrase
+      // });
+
+      const enc = await openpgp.encrypt({
+        message: await openpgp.createMessage({ text: JSON.stringify(vars) }), // input as Message object
+        encryptionKeys: publicKey,
+        // signingKeys: privateKey // optional
+      })
+      vars = enc
+    }
+
     return respondJSON({
       payload: {
         vars,
-        encrypted: false,
+        encrypted,
         user,
         team,
         project: p, // TODO: perhaps stick with `p` for frontend read use-cases
