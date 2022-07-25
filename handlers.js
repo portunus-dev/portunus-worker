@@ -378,9 +378,13 @@ module.exports.createUser = async ({ content: { email } }) => {
   }
 }
 
-module.exports.updateUserKey = async ({ user, content: { public_key } }) => {
+module.exports.updateUserGPGPublicKey = async ({
+  user,
+  content: { public_key },
+}) => {
   try {
-    if (public_key === undefined) {
+    console.log('PUBLIC KEY', public_key)
+    if (public_key === undefined || !public_key.length) {
       throw new HTTPError('Invalid request: public_key not supplied', 400)
     }
 
@@ -393,7 +397,24 @@ module.exports.updateUserKey = async ({ user, content: { public_key } }) => {
 
     return respondJSON({ payload: { key: user.key, public_key } })
   } catch (err) {
-    console.error('updateUserKeyError', err)
+    console.error('updateUserGPGPublicKeyError', err)
+    return respondError(err)
+  }
+}
+
+module.exports.deleteUserGPGPublicKey = async ({ user }) => {
+  try {
+    const update = {
+      ...user,
+    }
+
+    delete update.public_key
+
+    await updateUser(update)
+
+    return respondJSON({ payload: { key: user.key } })
+  } catch (err) {
+    console.error('deleteUserGPGPublicKeyError', err)
     return respondError(err)
   }
 }
@@ -589,7 +610,7 @@ module.exports.getEnv = async ({ user, query }) => {
       vars = Object.keys(vars).reduce((agg, k) => ({ ...agg, [k]: '' }), {})
     } else if (user.public_key) {
       encrypted = true
-      console.log('trying to encrypt!', user.public_key)
+      console.log('trying to encrypt!', user.public_key.length)
 
       const publicKey = await openpgp.readKey({
         armoredKey: user.public_key,
@@ -602,12 +623,16 @@ module.exports.getEnv = async ({ user, query }) => {
       //     passphrase
       // });
 
+      console.log(vars)
+
       const enc = await openpgp.encrypt({
         message: await openpgp.createMessage({ text: JSON.stringify(vars) }), // input as Message object
         encryptionKeys: publicKey,
         // signingKeys: privateKey // optional
       })
+
       vars = enc
+      console.log(vars)
     }
 
     return respondJSON({

@@ -31,7 +31,8 @@ import {
   updateTeamAudit,
   getAuditHistory,
   updateUserAudit,
-  updateUserKey,
+  updateUserGPGPublicKey,
+  deleteUserGPGPublicKey,
 } from './handlers'
 import { corsHeaders, respondJSON, respondError } from './modules/utils'
 import { withRequireUser } from './modules/auth'
@@ -79,11 +80,19 @@ router.put('/team/audit', withContent, withRequireUser, updateTeamAudit)
 
 router.get('/users', withRequireUser, listUsers)
 router.get('/user', withRequireUser, ({ user }) =>
-  respondJSON({ payload: { user } })
+  respondJSON({
+    payload: {
+      user: {
+        ...user,
+        public_key: user.public_key && user.public_key.length > 0,
+      },
+    },
+  })
 )
 router.post('/user', withContent, createUser)
 router.put('/user/audit', withRequireUser, withContent, updateUserAudit)
-router.put('/user/key', withRequireUser, withContent, updateUserKey)
+router.put('/user/key', withRequireUser, withContent, updateUserGPGPublicKey)
+router.delete('/user/key', withRequireUser, withContent, deleteUserGPGPublicKey)
 router.put('/user/team', withContent, withRequireUser, addUserToTeam)
 router.delete('/user/team', withContent, withRequireUser, removeUserFromTeam)
 router.put('/user/admin', withContent, withRequireUser, addUserToAdmin)
