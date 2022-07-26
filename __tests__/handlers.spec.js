@@ -3,12 +3,16 @@ const deta = require('../modules/db')
 
 jest.mock('../modules/teams')
 const teamModule = require('../modules/teams')
+
 jest.mock('../modules/users')
 const userModule = require('../modules/users')
+
 jest.mock('../modules/projects')
 const projectModule = require('../modules/projects')
+
 jest.mock('../modules/envs')
-// const envModule = require('../modules/envs')
+const envModule = require('../modules/envs')
+
 jest.mock('../modules/audit')
 const auditModule = require('../modules/audit')
 
@@ -844,10 +848,16 @@ describe('Handlers!', () => {
       const project = 'test'
       const stage = 'test'
 
+      envModule.getEncryptedKVEnvs.mockImplementationOnce(() => ({
+        encrypted: true,
+        vars: {},
+      }))
+
       const response = await getEnv({
         user: { teams: [team] },
         query: { team, project, stage },
       })
+
       expect(response.status).toEqual(200)
     })
   })

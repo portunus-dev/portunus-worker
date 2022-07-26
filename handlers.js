@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken')
 const { totp } = require('otplib')
 const { v4: uuidv4 } = require('uuid')
-const openpgp = require('openpgp')
 
 totp.options = { step: 60 * 5 } // 5 minutes for the OTPs
 
@@ -30,7 +29,7 @@ const {
   listStages,
   deleteStage,
   updateStageVars,
-  getKVEnvs,
+  getEncryptedKVEnvs,
 } = require('./modules/envs')
 
 const {
@@ -620,38 +619,13 @@ module.exports.getEnv = async ({ user, query }) => {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
 
-    // default to CLI use with no encryption
-    let vars = (await getKVEnvs({ team, p, stage })) || {}
-    let encrypted = false
-
-    if (ui) {
-      // trim values for UI
-      vars = Object.keys(vars).reduce((agg, k) => ({ ...agg, [k]: '' }), {})
-    } else if (user.public_key) {
-      encrypted = true
-
-      const publicKey = await openpgp.readKey({
-        armoredKey: user.public_key,
-      })
-
-      // if we want to sign ourselves for verification?
-
-      // const privateKey = await openpgp.decryptKey({
-      //     privateKey: await openpgp.readPrivateKey({ armoredKey: privateKeyArmored }),
-      //     passphrase
-      // });
-
-      console.log(vars)
-
-      const enc = await openpgp.encrypt({
-        message: await openpgp.createMessage({ text: JSON.stringify(vars) }), // input as Message object
-        encryptionKeys: publicKey,
-        // signingKeys: privateKey // optional
-      })
-
-      vars = enc
-      console.log(vars)
-    }
+    const { vars, encrypted } = await getEncryptedKVEnvs({
+      team,
+      project: p,
+      stage,
+      ui,
+      user,
+    })
 
     return respondJSON({
       payload: {
