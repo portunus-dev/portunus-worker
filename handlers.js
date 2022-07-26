@@ -5,7 +5,13 @@ const openpgp = require('openpgp')
 
 totp.options = { step: 60 * 5 } // 5 minutes for the OTPs
 
-const { HTTPError, respondError, respondJSON } = require('./modules/utils')
+const {
+  HTTPError,
+  respondError,
+  respondJSON,
+  sanitizeUser,
+} = require('./modules/utils')
+
 const {
   fetchUser, // TODO deprecated, use getUser
   updateUser,
@@ -18,6 +24,7 @@ const {
   removeUserFromAdmin,
   deleteUser,
 } = require('./modules/users')
+
 const {
   createStage,
   listStages,
@@ -25,6 +32,7 @@ const {
   updateStageVars,
   getKVEnvs,
 } = require('./modules/envs')
+
 const {
   createTeam,
   listTeams,
@@ -33,6 +41,7 @@ const {
   updateTeamAudit,
   deleteTeam,
 } = require('./modules/teams')
+
 const {
   createProject,
   listProjects,
@@ -352,18 +361,29 @@ module.exports.updateStageVars = async ({
 module.exports.listUsers = async ({ query, user }) => {
   try {
     const { team = user.teams[0], limit, last } = query
+
     if (!team) {
       throw new HTTPError('Invalid request: team not supplied', 400)
     }
+
     if (!user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
+
     const payload = await listTeamUsers({ team, limit, last })
+
     return respondJSON({ payload })
   } catch (err) {
     return respondError(err)
   }
 }
+
+module.exports.getUser = ({ user }) =>
+  respondJSON({
+    payload: {
+      user: sanitizeUser(user),
+    },
+  })
 
 module.exports.createUser = async ({ content: { email } }) => {
   try {
@@ -383,7 +403,6 @@ module.exports.updateUserGPGPublicKey = async ({
   content: { public_key },
 }) => {
   try {
-    console.log('PUBLIC KEY', public_key)
     if (public_key === undefined || !public_key.length) {
       throw new HTTPError('Invalid request: public_key not supplied', 400)
     }
@@ -610,7 +629,6 @@ module.exports.getEnv = async ({ user, query }) => {
       vars = Object.keys(vars).reduce((agg, k) => ({ ...agg, [k]: '' }), {})
     } else if (user.public_key) {
       encrypted = true
-      console.log('trying to encrypt!', user.public_key.length)
 
       const publicKey = await openpgp.readKey({
         armoredKey: user.public_key,

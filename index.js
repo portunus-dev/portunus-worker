@@ -16,6 +16,7 @@ import {
   updateStageVars,
   deleteStage,
   listUsers,
+  getUser,
   createUser,
   deleteUser,
   addUserToTeam,
@@ -34,7 +35,8 @@ import {
   updateUserGPGPublicKey,
   deleteUserGPGPublicKey,
 } from './handlers'
-import { corsHeaders, respondJSON, respondError } from './modules/utils'
+
+import { corsHeaders, respondError } from './modules/utils'
 import { withRequireUser } from './modules/auth'
 import deta from './modules/db'
 import {
@@ -79,16 +81,7 @@ router.put(
 router.put('/team/audit', withContent, withRequireUser, updateTeamAudit)
 
 router.get('/users', withRequireUser, listUsers)
-router.get('/user', withRequireUser, ({ user }) =>
-  respondJSON({
-    payload: {
-      user: {
-        ...user,
-        public_key: user.public_key && user.public_key.length > 0,
-      },
-    },
-  })
-)
+router.get('/user', withRequireUser, getUser)
 router.post('/user', withContent, createUser)
 router.put('/user/audit', withRequireUser, withContent, updateUserAudit)
 router.put('/user/key', withRequireUser, withContent, updateUserGPGPublicKey)
