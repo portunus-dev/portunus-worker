@@ -1,3 +1,5 @@
+const openpgp = require('openpgp')
+
 const deta = require('./db')
 
 module.exports.getStage = ({ team, project, stage = 'dev' }) =>
@@ -72,5 +74,47 @@ module.exports.updateStageVars = async ({ stage, updates }) => {
 }
 
 // Cloudflare KV - KV, for CLI use
-module.exports.getKVEnvs = ({ team, p, stage }) =>
+const getKVEnvs = ({ team, p, stage }) =>
   KV.get(`${team}::${p}::${stage}`, { type: 'json' })
+
+module.exports.getKVEnvs = getKVEnvs
+
+module.exports.getEncryptedKVEnvs = async ({
+  team,
+  project,
+  stage,
+  user,
+  ui,
+}) => {
+  // default to CLI use with no encryption
+  let vars = (await getKVEnvs({ team, p: project, stage })) || {}
+  let encrypted = false
+
+  if (ui) {
+    // trim values for UI
+    vars = Object.keys(vars).reduce((agg, k) => ({ ...agg, [k]: '' }), {})
+  } else if (user.public_key) {
+    encrypted = true
+
+    const publicKey = await openpgp.readKey({
+      armoredKey: user.public_key,
+    })
+
+    // if we want to sign ourselves for verification?
+
+    // const privateKey = await openpgp.decryptKey({
+    //     privateKey: await openpgp.readPrivateKey({ armoredKey: privateKeyArmored }),
+    //     passphrase
+    // });
+
+    const enc = await openpgp.encrypt({
+      message: await openpgp.createMessage({ text: JSON.stringify(vars) }), // input as Message object
+      encryptionKeys: publicKey,
+      // signingKeys: privateKey // optional
+    })
+
+    vars = enc
+  }
+
+  return { vars, encrypted }
+}

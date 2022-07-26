@@ -27,3 +27,8 @@ module.exports.respondJSON = ({ payload, status = 200, headers = {} }) =>
     },
     status,
   })
+
+module.exports.sanitizeUser = (user) => ({
+  ...user,
+  public_key: user.public_key && user.public_key.length > 0,
+})

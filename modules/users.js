@@ -1,6 +1,7 @@
 const { v4: uuidv4 } = require('uuid')
 
 const deta = require('./db')
+const { sanitizeUser } = require('./utils')
 
 // deta Base - users, for UI use
 // TODO: deprecated in favor of getUser below
@@ -12,10 +13,13 @@ module.exports.fetchUser = (email) =>
 
 module.exports.getUser = deta.Base('users').get
 
-module.exports.listTeamUsers = ({ team }) =>
-  deta
+module.exports.listTeamUsers = async ({ team }) => {
+  const users = await deta
     .Base('users')
     .fetch([{ 'teams?contains': team }, { 'admins?contains': team }], {})
+
+  return users.map(sanitizeUser)
+}
 
 module.exports.createUser = async (email, { getKVUser = false } = {}) => {
   const user = {

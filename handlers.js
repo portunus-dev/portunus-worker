@@ -4,7 +4,13 @@ const { v4: uuidv4 } = require('uuid')
 
 totp.options = { step: 60 * 5 } // 5 minutes for the OTPs
 
-const { HTTPError, respondError, respondJSON } = require('./modules/utils')
+const {
+  HTTPError,
+  respondError,
+  respondJSON,
+  sanitizeUser,
+} = require('./modules/utils')
+
 const {
   fetchUser, // TODO deprecated, use getUser
   updateUser,
@@ -17,13 +23,15 @@ const {
   removeUserFromAdmin,
   deleteUser,
 } = require('./modules/users')
+
 const {
   createStage,
   listStages,
   deleteStage,
   updateStageVars,
-  getKVEnvs,
+  getEncryptedKVEnvs,
 } = require('./modules/envs')
+
 const {
   createTeam,
   listTeams,
@@ -32,6 +40,7 @@ const {
   updateTeamAudit,
   deleteTeam,
 } = require('./modules/teams')
+
 const {
   createProject,
   listProjects,
@@ -351,18 +360,29 @@ module.exports.updateStageVars = async ({
 module.exports.listUsers = async ({ query, user }) => {
   try {
     const { team = user.teams[0], limit, last } = query
+
     if (!team) {
       throw new HTTPError('Invalid request: team not supplied', 400)
     }
+
     if (!user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
+
     const payload = await listTeamUsers({ team, limit, last })
+
     return respondJSON({ payload })
   } catch (err) {
     return respondError(err)
   }
 }
+
+module.exports.getUser = ({ user }) =>
+  respondJSON({
+    payload: {
+      user: sanitizeUser(user),
+    },
+  })
 
 module.exports.createUser = async ({ content: { email } }) => {
   try {
@@ -373,6 +393,46 @@ module.exports.createUser = async ({ content: { email } }) => {
 
     return respondJSON({ payload: { key } })
   } catch (err) {
+    return respondError(err)
+  }
+}
+
+module.exports.updateUserGPGPublicKey = async ({
+  user,
+  content: { public_key },
+}) => {
+  try {
+    if (public_key === undefined || !public_key.length) {
+      throw new HTTPError('Invalid request: public_key not supplied', 400)
+    }
+
+    const update = {
+      ...user,
+      public_key,
+    }
+
+    await updateUser(update)
+
+    return respondJSON({ payload: { key: user.key, public_key } })
+  } catch (err) {
+    console.error('updateUserGPGPublicKeyError', err)
+    return respondError(err)
+  }
+}
+
+module.exports.deleteUserGPGPublicKey = async ({ user }) => {
+  try {
+    const update = {
+      ...user,
+    }
+
+    delete update.public_key
+
+    await updateUser(update)
+
+    return respondJSON({ payload: { key: user.key } })
+  } catch (err) {
+    console.error('deleteUserGPGPublicKeyError', err)
     return respondError(err)
   }
 }
@@ -545,7 +605,9 @@ module.exports.getEnv = async ({ user, query }) => {
       team = user.teams[0], // TODO: backward compatibility
       project: p,
       stage,
+      ui = false,
     } = query
+
     if (!p) {
       throw new HTTPError('Invalid request: project not supplied', 400)
     }
@@ -556,11 +618,19 @@ module.exports.getEnv = async ({ user, query }) => {
     if (!team || !user.teams.includes(team)) {
       throw new HTTPError('Invalid portnus-jwt: no team access', 403)
     }
-    const vars = (await getKVEnvs({ team, p, stage })) || {}
+
+    const { vars, encrypted } = await getEncryptedKVEnvs({
+      team,
+      project: p,
+      stage,
+      ui,
+      user,
+    })
+
     return respondJSON({
       payload: {
         vars,
-        encrypted: false,
+        encrypted,
         user,
         team,
         project: p, // TODO: perhaps stick with `p` for frontend read use-cases

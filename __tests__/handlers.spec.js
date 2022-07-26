@@ -3,12 +3,16 @@ const deta = require('../modules/db')
 
 jest.mock('../modules/teams')
 const teamModule = require('../modules/teams')
+
 jest.mock('../modules/users')
 const userModule = require('../modules/users')
+
 jest.mock('../modules/projects')
 const projectModule = require('../modules/projects')
+
 jest.mock('../modules/envs')
-// const envModule = require('../modules/envs')
+const envModule = require('../modules/envs')
+
 jest.mock('../modules/audit')
 const auditModule = require('../modules/audit')
 
@@ -20,7 +24,9 @@ const {
   updateTeamAudit,
   deleteTeam,
   listUsers,
+  getUser,
   createUser,
+  updateUserGPGPublicKey,
   updateUserAudit,
   addUserToTeam,
   removeUserFromTeam,
@@ -38,6 +44,8 @@ const {
   getEnv,
   getAuditHistory,
 } = require('../handlers')
+
+const { sanitizeUser } = require('../modules/utils')
 
 beforeAll(() => {
   global.Response = ResponseTest
@@ -191,6 +199,7 @@ describe('Handlers!', () => {
       const response = await listUsers({ user: { teams: [] }, query: { team } })
       expect(response.status).toEqual(403)
     })
+
     test('listUsers - should respond 200', async () => {
       const team = 'test'
       const response = await listUsers({
@@ -199,12 +208,23 @@ describe('Handlers!', () => {
       })
       expect(response.status).toEqual(200)
     })
+
+    test('getUser - should sanitize user', async () => {
+      const user = { teams: ['abc'], public_key: 'abcd' }
+      const response = await getUser({
+        user,
+      })
+      expect(response.status).toEqual(200)
+      expect(JSON.parse(response.body)).toEqual({ user: sanitizeUser(user) })
+    })
+
     test('createUser - should require email', async () => {
       const response = await createUser({
         content: {},
       })
       expect(response.status).toEqual(400)
     })
+
     test('createUser - should require valid email', async () => {
       const email = 'test'
       const response = await createUser({
@@ -212,6 +232,7 @@ describe('Handlers!', () => {
       })
       expect(response.status).toEqual(400)
     })
+
     test('createUser - should respond 200', async () => {
       const email = 'test@test.com'
       userModule.createUser.mockResolvedValue({ key: 'test' })
@@ -220,6 +241,38 @@ describe('Handlers!', () => {
       })
       expect(response.status).toEqual(200)
     })
+
+    test('updateUserGPGPublicKey - should require public key', async () => {
+      const response = await updateUserGPGPublicKey({
+        content: {},
+      })
+
+      expect(response.status).toEqual(400)
+    })
+
+    test('updateUserGPGPublicKey - should require non-zero public key', async () => {
+      const public_key = ''
+
+      const response = await updateUserGPGPublicKey({
+        content: { public_key },
+      })
+
+      expect(response.status).toEqual(400)
+    })
+
+    test('updateUserGPGPublicKey - should respond 200', async () => {
+      const public_key = '123456'
+
+      userModule.updateUser.mockResolvedValue({ key: 'test' })
+
+      const response = await updateUserGPGPublicKey({
+        user: {},
+        content: { public_key },
+      })
+
+      expect(response.status).toEqual(200)
+    })
+
     test('updateUserAudit - should require audit parameter', async () => {
       const response = await updateUserAudit({
         user: { admins: [] },
@@ -795,10 +848,16 @@ describe('Handlers!', () => {
       const project = 'test'
       const stage = 'test'
 
+      envModule.getEncryptedKVEnvs.mockImplementationOnce(() => ({
+        encrypted: true,
+        vars: {},
+      }))
+
       const response = await getEnv({
         user: { teams: [team] },
         query: { team, project, stage },
       })
+
       expect(response.status).toEqual(200)
     })
   })
