@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken')
+import jwt from '@tsndr/cloudflare-worker-jwt'
 const { totp } = require('otplib')
 const { v4: uuidv4 } = require('uuid')
 
