@@ -634,24 +634,17 @@ module.exports.login = async ({ query }) => {
   try {
     const { user, otp } = query;
     if (!user || !otp) {
-      console.error('User or OTP not supplied'); // I added
       return respondError(new HTTPError('User or OTP not supplied', 400));
     }
     const { email, jwt_uuid, otp_secret } = (await fetchUser(user)) || {
       teams: [],
     };
     if (!email || !otp_secret) {
-      console.error(`${user} not found`); // I added
       return respondError(new HTTPError(`${user} not found`, 404));
     }
     
     const isValid = await VERIFYOTP(otp, otp_secret);
-    console.log("Valid or not:",isValid);
-    console.log("OTP during login:",otp);
-    console.log("otp secret during login:",otp_secret);
-    console.log("user values during login:", await fetchUser(user));
     if (!isValid) {
-      console.error('Invalid OTP'); // I added
       return respondError(new HTTPError('Invalid OTP', 403));
     }
     
@@ -659,11 +652,9 @@ module.exports.login = async ({ query }) => {
       const token = await jwt.sign({ email, jwt_uuid }, TOKEN_SECRET);
       return respondJSON({ payload: { jwt: token } });
     } catch (err) {
-      console.error('Error generating JWT:', err); // I added
       return respondError(new HTTPError('JWT token generation failed', 500));
     }
   } catch (err) {
-    console.error('Error in login function:', err); // I added
     return respondError(new HTTPError('Internal server error', 500));
   }
 };
