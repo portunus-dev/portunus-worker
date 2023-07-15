@@ -613,7 +613,7 @@ module.exports.getOTP = async ({ query, url, headers, cf = {} }) => {
       },
       body: JSON.stringify({
         personalizations: [{ to: [{ email: u.email }] }],
-        from: { email: 'dev@ashishjullia.com' },
+        from: { email: 'dev@mindswire.com' },
         subject: 'Portunus Login OTP/Magic-Link',
         content: [
           {
@@ -645,7 +645,7 @@ module.exports.login = async ({ query }) => {
       return respondError(new HTTPError(`${user} not found`, 404));
     }
     
-    const isValid = await verifyOTP(otp, otp_secret);
+    const isValid = await VERIFYOTP(otp, otp_secret);
     console.log("Valid or not:",isValid);
     console.log("OTP during login:",otp);
     console.log("otp secret during login:",otp_secret);
@@ -705,7 +705,7 @@ module.exports.getToken = async ({ query }) => {
       },
       body: JSON.stringify({
         personalizations: [{ to: [{ email }] }],
-        from: { email: 'dev@ashishjullia.com' },
+        from: { email: 'dev@mindswire.com' },
         subject: 'print-env token',
         content: [{ type: 'text/plain', value: token }],
       }),
