@@ -644,7 +644,7 @@ module.exports.login = async ({ query }) => {
       return respondError(new HTTPError(`${user} not found`, 404))
     }
 
-    const isValid = await VERIFYOTP(otp, otp_secret)
+    const isValid = await verifyOTP(otp, otp_secret)
     if (!isValid) {
       return respondError(new HTTPError('Invalid OTP', 403))
     }
