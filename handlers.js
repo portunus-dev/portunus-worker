@@ -1,8 +1,7 @@
-const jwt = require('jsonwebtoken')
-const { totp } = require('otplib')
-const { v4: uuidv4 } = require('uuid')
+const jwt = require('@tsndr/cloudflare-worker-jwt')
+const { generateOTP, verifyOTP } = require('./modules/otp.js')
 
-totp.options = { step: 60 * 5 } // 5 minutes for the OTPs
+const { v4: uuidv4 } = require('uuid')
 
 const { HTTPError, respondError, respondJSON } = require('./modules/utils')
 const {
@@ -572,84 +571,93 @@ module.exports.getEnv = async ({ user, query }) => {
   }
 }
 
-// Auth handlers
 module.exports.getOTP = async ({ query, url, headers, cf = {} }) => {
-  const { user, origin } = query // user is email
-  if (!user || !EMAIL_REGEXP.test(user)) {
-    return respondError(new HTTPError('User email not supplied', 400))
-  }
-  let u = await fetchUser(user)
-  if (!u) {
-    u = await createUser(user)
-  } else if (!u.otp_secret) {
-    // legacy user without otp_secret
-    u.otp_secret = uuidv4()
-    if (u.otp_secret === u.jwt_uuid) {
-      // Note: this shouldn't happen anyway
-      throw new Error('OTP secret and JWT UUID are the same')
+  try {
+    const { user, origin } = query
+    if (!user || !EMAIL_REGEXP.test(user)) {
+      throw new HTTPError('User email not supplied', 400)
     }
-    u.updated = new Date()
-    await updateUser(u)
+    let u = await fetchUser(user)
+    if (!u) {
+      u = await createUser(user)
+    } else if (!u.otp_secret) {
+      u.otp_secret = uuidv4()
+      if (u.otp_secret === u.jwt_uuid) {
+        throw new Error('OTP secret and JWT UUID are the same')
+      }
+      u.updated = new Date()
+      await updateUser(u)
+    }
+    let otp
+    otp = await generateOTP(u.otp_secret)
+    const timeRemaining = 30 - (Math.floor(Date.now() / 1000) % 30)
+    const expiresAt = new Date(Date.now() + timeRemaining * 1000)
+    const { origin: _origin } = new URL(url)
+    const defaultOrigin = `${_origin}/login`
+    const locale = (headers.get('Accept-Language') || '').split(',')[0] || 'en'
+    const timeZone = cf.timezone || 'UTC'
+    const plainEmail = [
+      `OTP: ${otp}`,
+      `Magic-Link: ${origin || defaultOrigin}?user=${user}&otp=${otp}`,
+      `Expires at: ${expiresAt.toLocaleString(locale, {
+        timeZone,
+        timeZoneName: 'long',
+      })}`,
+    ].join('\n')
+    await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${MAIL_PASS}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: u.email }] }],
+        from: { email: 'dev@mindswire.com' },
+        subject: 'Portunus Login OTP/Magic-Link',
+        content: [
+          {
+            type: 'text/plain',
+            value: plainEmail,
+          },
+        ],
+      }),
+    })
+    return respondJSON({
+      payload: { message: `OTP/Magic-Link sent to ${user}` },
+    })
+  } catch (error) {
+    console.error('Error in getOTP: ', error)
+    throw error
   }
-  // Use time-based OTP to avoid storing them in deta/KV
-  const otp = totp.generate(u.otp_secret)
-  const expiresAt = new Date(Date.now() + totp.timeRemaining() * 1000)
-  // TODO: tricky for local dev as the origin is mapped to remote cloudflare worker
-  const { origin: _origin } = new URL(url)
-  const defaultOrigin = `${_origin}/login`
-  // obtain locale and timezone from request for email `expiresAt` formatting
-  const locale = (headers.get('Accept-Language') || '').split(',')[0] || 'en'
-  const timeZone = cf.timezone || 'UTC'
-  // send email with OTP
-  // TODO: need to manually remove sendgrid tracking https://app.sendgrid.com/settings/tracking
-  // TODO: need to programmatically turn it off always https://stackoverflow.com/a/63360103/158111
-  // TODO: setup own SMTP server (mailu) or AWS SES for much cheaper delivery
-  const plainEmail = [
-    `OTP: ${otp}`,
-    `Magic-Link: ${origin || defaultOrigin}?user=${user}&otp=${otp}`,
-    `Expires at: ${expiresAt.toLocaleString(locale, {
-      timeZone,
-      timeZoneName: 'long',
-    })}`,
-  ].join('\n')
-  await fetch('https://api.sendgrid.com/v3/mail/send', {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${MAIL_PASS}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      personalizations: [{ to: [{ email: u.email }] }],
-      from: { email: 'dev@mindswire.com' },
-      subject: 'Portunus Login OTP/Magic-Link',
-      content: [
-        {
-          type: 'text/plain',
-          value: plainEmail,
-        },
-      ],
-    }),
-  })
-  return respondJSON({ payload: { message: `OTP/Magic-Link sent to ${user}` } })
 }
 
 module.exports.login = async ({ query }) => {
-  const { user, otp } = query
-  if (!user || !otp) {
-    return respondError(new HTTPError('User or OTP not supplied', 400))
+  try {
+    const { user, otp } = query
+    if (!user || !otp) {
+      return respondError(new HTTPError('User or OTP not supplied', 400))
+    }
+    const { email, jwt_uuid, otp_secret } = (await fetchUser(user)) || {
+      teams: [],
+    }
+    if (!email || !otp_secret) {
+      return respondError(new HTTPError(`${user} not found`, 404))
+    }
+
+    const isValid = await verifyOTP(otp, otp_secret)
+    if (!isValid) {
+      return respondError(new HTTPError('Invalid OTP', 403))
+    }
+
+    try {
+      const token = await jwt.sign({ email, jwt_uuid }, TOKEN_SECRET)
+      return respondJSON({ payload: { jwt: token } })
+    } catch (err) {
+      return respondError(new HTTPError('JWT token generation failed', 500))
+    }
+  } catch (err) {
+    return respondError(new HTTPError('Internal server error', 500))
   }
-  const { email, jwt_uuid, otp_secret } = (await fetchUser(user)) || {
-    teams: [],
-  }
-  if (!email || !otp_secret) {
-    return respondError(new HTTPError(`${user} not found`, 404))
-  }
-  const isValid = totp.verify({ secret: otp_secret, token: otp })
-  if (!isValid) {
-    return respondError(new HTTPError('Invalid OTP', 403))
-  }
-  const token = jwt.sign({ email, jwt_uuid }, TOKEN_SECRET)
-  return respondJSON({ payload: { jwt: token } })
 }
 
 // legacy direct JWT through email
@@ -663,7 +671,22 @@ module.exports.getToken = async ({ query }) => {
   //   return respondError(new HTTPError(`${user} not found`, 404))
   // }
 
-  const token = jwt.sign({ email, jwt_uuid }, TOKEN_SECRET)
+  // const token = jwt.sign({ email, jwt_uuid }, TOKEN_SECRET)
+  // const token = await new jose.SignJWT({ email, jwt_uuid }).sign(TOKEN_SECRET)
+  const token = await jwt.sign({ email, jwt_uuid }, TOKEN_SECRET)
+
+  // const sharedSecret = Uint8Array.from(TOKEN_SECRET, c => c.charCodeAt(0))
+  // // Import your TOKEN_SECRET as a key
+  // const key = await importKey(
+  //   sharedSecret,
+  //   { name: 'HMAC', hash: 'SHA-256' },
+  //   'raw',
+  //   ['sign', 'verify']
+  // )
+  // // Create a new SignJWT object
+  // const jwt = new SignJWT({ email, jwt_uuid })
+  // // Sign the JWT with your key
+  // const token = await jwt.sign(key)
 
   try {
     await fetch('https://api.sendgrid.com/v3/mail/send', {
