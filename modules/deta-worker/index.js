@@ -12,8 +12,11 @@ function DetaClass(key) {
   }
 }
 
-DetaClass.prototype.Base = function(baseName) {
-  return new BaseClass(this.headers, `https://database.deta.sh/v1/${this.id}/${baseName}`)
+DetaClass.prototype.Base = function (baseName) {
+  return new BaseClass(
+    this.headers,
+    `https://database.deta.sh/v1/${this.id}/${baseName}`
+  )
 }
 
 export const Deta = (key) => new DetaClass(key)

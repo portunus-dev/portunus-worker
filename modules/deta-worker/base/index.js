@@ -9,7 +9,7 @@ function isObject(v) {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
-BaseClass.prototype.put = async function(data, key = null) {
+BaseClass.prototype.put = async function (data, key = null) {
   if (key != null) {
     data.key = key
   }
@@ -28,7 +28,7 @@ BaseClass.prototype.put = async function(data, key = null) {
   return processed[0]
 }
 
-BaseClass.prototype.get = async function(key) {
+BaseClass.prototype.get = async function (key) {
   const request = await fetch(`${this.baseURL}/items/${key}`, {
     method: 'GET',
     headers: this.headers,
@@ -39,14 +39,14 @@ BaseClass.prototype.get = async function(key) {
   return request.json()
 }
 
-BaseClass.prototype.delete = function(key) {
+BaseClass.prototype.delete = function (key) {
   return fetch(`${this.baseURL}/items/${key}`, {
     method: 'DELETE',
     headers: this.headers,
   }).then(() => null)
 }
 
-BaseClass.prototype.insert = async function(data, key = null) {
+BaseClass.prototype.insert = async function (data, key = null) {
   if (key != null) {
     data.key = key
   }
@@ -62,7 +62,7 @@ BaseClass.prototype.insert = async function(data, key = null) {
   throw new Error((res.errors || [])[0] || 'Unable to insert item')
 }
 
-BaseClass.prototype.putMany = async function(items) {
+BaseClass.prototype.putMany = async function (items) {
   if (!Array.isArray(items)) {
     throw new Error('Items must be an array')
   }
@@ -87,25 +87,23 @@ BaseClass.prototype.putMany = async function(items) {
   throw new Error((res.errors || [])[0] || 'Unable to put items')
 }
 
-BaseClass.prototype.update = async function(updates, key) {
+BaseClass.prototype.update = async function (updates, key) {
   // build updates payload
   const payload = {}
   Object.entries(updates).forEach(([field, v]) => {
     if (v instanceof Action) {
       if (v.action === ACTION_TYPES.Delete) {
-        payload[v.action] = [
-          ...payload[v.action] || [],
-          field,
-        ]
+        payload[v.action] = [...(payload[v.action] || []), field]
       } else {
         payload[v.action] = {
-          ...payload[v.action] || {},
+          ...(payload[v.action] || {}),
           [field]: v.value,
         }
       }
-    } else { // implied ACTION_TYPES.Set
+    } else {
+      // implied ACTION_TYPES.Set
       payload[ACTION_TYPES.Set] = {
-        ...payload[ACTION_TYPES.Set] || {},
+        ...(payload[ACTION_TYPES.Set] || {}),
         [field]: v,
       }
     }
@@ -119,10 +117,10 @@ BaseClass.prototype.update = async function(updates, key) {
   return req.ok ? null : res
 }
 
-BaseClass.prototype.fetch = async function(query, options) {
+BaseClass.prototype.fetch = async function (query, options) {
   const opts = Object.entries(options).reduce((acc, [k, v]) => {
     if (v !== undefined) {
-      acc[k] = k ==='limit' ? parseInt(v, 10) : v
+      acc[k] = k === 'limit' ? parseInt(v, 10) : v
     }
     return acc
   }, {})

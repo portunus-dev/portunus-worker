@@ -1,5 +1,5 @@
-import jwt from '@tsndr/cloudflare-worker-jwt'
-const { generateOTP, verifyOTP } = require('./modules/otp.js');
+const jwt = require('@tsndr/cloudflare-worker-jwt')
+const { generateOTP, verifyOTP } = require('./modules/otp.js')
 
 const { v4: uuidv4 } = require('uuid')
 
@@ -489,7 +489,6 @@ module.exports.addUserToAdmin = async ({
     }
 
     await addUserToAdmin({ team, user: kvUser })
-  
 
     return respondJSON({ payload: { key: kvUser.key } })
   } catch (err) {
@@ -589,10 +588,10 @@ module.exports.getOTP = async ({ query, url, headers, cf = {} }) => {
       u.updated = new Date()
       await updateUser(u)
     }
-    let otp;
-    otp = await generateOTP(u.otp_secret);
-    const timeRemaining = 30 - (Math.floor(Date.now() / 1000) % 30);
-    const expiresAt = new Date(Date.now() + timeRemaining * 1000);
+    let otp
+    otp = await generateOTP(u.otp_secret)
+    const timeRemaining = 30 - (Math.floor(Date.now() / 1000) % 30)
+    const expiresAt = new Date(Date.now() + timeRemaining * 1000)
     const { origin: _origin } = new URL(url)
     const defaultOrigin = `${_origin}/login`
     const locale = (headers.get('Accept-Language') || '').split(',')[0] || 'en'
@@ -623,41 +622,43 @@ module.exports.getOTP = async ({ query, url, headers, cf = {} }) => {
         ],
       }),
     })
-    return respondJSON({ payload: { message: `OTP/Magic-Link sent to ${user}` } })
+    return respondJSON({
+      payload: { message: `OTP/Magic-Link sent to ${user}` },
+    })
   } catch (error) {
-    console.error("Error in getOTP: ", error);
-    throw error;
+    console.error('Error in getOTP: ', error)
+    throw error
   }
 }
 
 module.exports.login = async ({ query }) => {
   try {
-    const { user, otp } = query;
+    const { user, otp } = query
     if (!user || !otp) {
-      return respondError(new HTTPError('User or OTP not supplied', 400));
+      return respondError(new HTTPError('User or OTP not supplied', 400))
     }
     const { email, jwt_uuid, otp_secret } = (await fetchUser(user)) || {
       teams: [],
-    };
+    }
     if (!email || !otp_secret) {
-      return respondError(new HTTPError(`${user} not found`, 404));
+      return respondError(new HTTPError(`${user} not found`, 404))
     }
-    
-    const isValid = await VERIFYOTP(otp, otp_secret);
+
+    const isValid = await VERIFYOTP(otp, otp_secret)
     if (!isValid) {
-      return respondError(new HTTPError('Invalid OTP', 403));
+      return respondError(new HTTPError('Invalid OTP', 403))
     }
-    
+
     try {
-      const token = await jwt.sign({ email, jwt_uuid }, TOKEN_SECRET);
-      return respondJSON({ payload: { jwt: token } });
+      const token = await jwt.sign({ email, jwt_uuid }, TOKEN_SECRET)
+      return respondJSON({ payload: { jwt: token } })
     } catch (err) {
-      return respondError(new HTTPError('JWT token generation failed', 500));
+      return respondError(new HTTPError('JWT token generation failed', 500))
     }
   } catch (err) {
-    return respondError(new HTTPError('Internal server error', 500));
+    return respondError(new HTTPError('Internal server error', 500))
   }
-};
+}
 
 // legacy direct JWT through email
 module.exports.getToken = async ({ query }) => {
@@ -673,7 +674,7 @@ module.exports.getToken = async ({ query }) => {
   // const token = jwt.sign({ email, jwt_uuid }, TOKEN_SECRET)
   // const token = await new jose.SignJWT({ email, jwt_uuid }).sign(TOKEN_SECRET)
   const token = await jwt.sign({ email, jwt_uuid }, TOKEN_SECRET)
-  
+
   // const sharedSecret = Uint8Array.from(TOKEN_SECRET, c => c.charCodeAt(0))
   // // Import your TOKEN_SECRET as a key
   // const key = await importKey(
