@@ -4,11 +4,12 @@ const deta = require('./db')
 
 // deta Base - users, for UI use
 // TODO: deprecated in favor of getUser below
-module.exports.fetchUser = (email) =>
+module.exports.fetchUser = (email) => 
   deta
     .Base('users')
-    .fetch({ email }, { limit: 1 })
+    .fetch({ email: email.toLowerCase() }, { limit: 1 })
     .then(({ items = [] }) => items[0] || null)
+
 
 module.exports.getUser = deta.Base('users').get
 
@@ -19,7 +20,7 @@ module.exports.listTeamUsers = ({ team }) =>
 
 module.exports.createUser = async (email, { getKVUser = false } = {}) => {
   const user = {
-    email,
+    email: email.toLowerCase(),
     jwt_uuid: uuidv4(),
     otp_secret: uuidv4(),
     teams: [],
@@ -32,10 +33,11 @@ module.exports.createUser = async (email, { getKVUser = false } = {}) => {
     throw new Error('jwt_uuid and otp_secret must be different')
   }
   // TODO: do this "transactionally"
-  const dbUser = await deta.Base('users').insert(user, email) // email as key
+  const dbUser = await deta.Base('users').insert(user, email.toLowerCase()) // email as key
   // remove deta exclusive fields (such as otp_secret)
   const kvUser = { ...dbUser }
   delete kvUser.otp_secret
+  // No need to lowercase the email here as it is already there when user is constructed
   await USERS.put(user.email, JSON.stringify(kvUser))
 
   return getKVUser ? kvUser : dbUser
@@ -51,7 +53,7 @@ module.exports.updateUser = (user) => {
   return Promise.all([
     // TODO: do this "transactionally"
     deta.Base('users').put(user), // deta.Base put(data)
-    USERS.put(user.email, JSON.stringify(kvUser)), // KV put(key, value)
+    USERS.put(user.email.toLowerCase(), JSON.stringify(kvUser)), // KV put(key, value)
   ])
 }
 
@@ -62,9 +64,9 @@ module.exports.addUserToTeam = ({ user, team }) => {
   // TODO: make this "transactional"
   // TODO: unify with other user updates e.g. ./user.update
   return Promise.all([
-    users.update({ teams: users.util.append(team) }, user.key),
+    users.update({ teams: users.util.append(team) }, user.key.toLowerCase()),
     USERS.put(
-      user.email,
+      user.email.toLowerCase(),
       JSON.stringify({
         ...user,
         teams: [...user.teams, team],
@@ -82,9 +84,9 @@ module.exports.removeUserFromTeam = ({ user, team }) => {
   // TODO: make this "transactional"
   // TODO: unify with other user updates e.g. ./user.update
   return Promise.all([
-    users.update({ teams, admins }, user.key),
+    users.update({ teams, admins }, user.key.toLowerCase()),
     USERS.put(
-      user.email,
+      user.email.toLowerCase(),
       JSON.stringify({
         ...user,
         teams,
@@ -102,9 +104,9 @@ module.exports.addUserToAdmin = ({ user, team }) => {
   // TODO: make this "transactional"
   // TODO: unify with other user updates e.g. ./user.update
   return Promise.all([
-    users.update({ admins: users.util.append(team) }, user.key),
+    users.update({ admins: users.util.append(team) }, user.key.toLowerCase()),
     USERS.put(
-      user.email,
+      user.email.toLowerCase(),
       JSON.stringify({
         ...user,
         admins: [...user.admins, team],
@@ -122,9 +124,9 @@ module.exports.removeUserFromAdmin = ({ user, team }) => {
   // TODO: make this "transactional"
   // TODO: unify with other user updates e.g. ./user.update
   return Promise.all([
-    users.update({ admins }, user.key),
+    users.update({ admins }, user.key.toLowerCase()),
     USERS.put(
-      user.email,
+      user.email.toLowerCase(),
       JSON.stringify({
         ...user,
         admins,
@@ -145,10 +147,10 @@ module.exports.deleteUser = (user) => {
   // TODO: what if they're the only admin for a team? Should make someone else admin!
   return Promise.all([
     // TODO: do this "transactionally"
-    deta.Base('users').delete(user.key),
-    USERS.delete(user.email),
+    deta.Base('users').delete(user.key.toLowerCase()),
+    USERS.delete(user.email.toLowerCase()),
   ])
 }
 
 // Cloudflare Workers KV - USERS, for CLI use
-module.exports.getKVUser = (email) => USERS.get(email, { type: 'json' })
+module.exports.getKVUser = (email) => USERS.get(email.toLowerCase(), { type: 'json' })
