@@ -75,7 +75,7 @@ module.exports.root = ({ headers, cf }) =>
   respondJSON({
     payload: {
       cli: 'pip install -U print-env --pre',
-      'Web UI': 'https://portunus.locus.engineering',
+      'Web UI': `${WEB_UI_URL}`,
       language: headers.get('Accept-Language'),
       cf,
     },
@@ -666,7 +666,7 @@ module.exports.getOTP = async ({ query, url, headers, cf = {} }) => {
       },
       body: JSON.stringify({
         personalizations: [{ to: [{ email: u.email }] }],
-        from: { email: 'dev@locus.engineering' },
+        from: { email: 'dev@mindswire.com' },
         subject: 'Portunus Login OTP/Magic-Link',
         content: [
           {
@@ -729,7 +729,7 @@ module.exports.getToken = async ({ query }) => {
       },
       body: JSON.stringify({
         personalizations: [{ to: [{ email }] }],
-        from: { email: 'dev@locus.engineering' },
+        from: { email: 'dev@mindswire.com' },
         subject: 'print-env token',
         content: [{ type: 'text/plain', value: token }],
       }),

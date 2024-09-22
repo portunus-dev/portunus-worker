@@ -34,8 +34,10 @@ jobs:
           secrets: |
             MAIL_PASS
             TOKEN_SECRET
+            WEB_UI_URL
         env:
           # Sendgrid 'dev'
           MAIL_PASS: ${{ secrets.MAIL_PASS_DEV }}
           # JWT token secret 'dev'
           TOKEN_SECRET: ${{ secrets.TOKEN_SECRET_DEV }}
+          WEB_UI_URL: ${{ secrets.WEB_UI_URL_DEV }}
