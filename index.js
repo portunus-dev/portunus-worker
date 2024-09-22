@@ -34,11 +34,11 @@ import {
 } from './handlers'
 import { corsHeaders, respondJSON, respondError } from './modules/utils'
 import { withRequireUser } from './modules/auth'
-import deta from './modules/db'
 import {
   withLogging,
   minimalLog,
   convertRequestToHumanReadableString,
+  logAudit,
 } from './modules/audit'
 
 const router = Router()
@@ -151,12 +151,17 @@ router.all(
 
 addEventListener('fetch', (event) =>
   event.respondWith(
-    router
-      .handle(event.request)
-      .catch(respondError)
-      .finally(() => {
+    (async () => {
+      try {
+        // Handle the incoming request via the router
+        return await router.handle(event.request);
+      } catch (error) {
+        // Handle any errors
+        return respondError(error);
+      } finally {
+        // Only log if the request is not OPTIONS
         if (event.request.method !== 'OPTIONS') {
-          const email = event.request.user && event.request.user.email
+          const email = event.request.user && event.request.user.email;
           const {
             team = event.request.user &&
               event.request.user.teams &&
@@ -166,21 +171,22 @@ addEventListener('fetch', (event) =>
           } = {
             ...(event.request.query || {}),
             ...(event.request.content || {}),
-          }
+          };
+
           const keys = {
             email,
-            team,
+            team: team?.key || '',
             project:
               project && project.indexOf('::') > 0
                 ? project
-                : `${team}::${project}`,
+                : `${team?.key || ''}::${project}`,
             stage:
               stage && stage.indexOf('::') > 0
                 ? stage
-                : `${team}::${project}::${stage}`,
-          }
+                : `${team?.key || ''}::${project}::${stage}`,
+          };          
 
-          const { pathname: apiPath } = new URL(event.request.url)
+          const { pathname: apiPath } = new URL(event.request.url);
 
           const explanation = convertRequestToHumanReadableString({
             url: event.request.url,
@@ -188,7 +194,7 @@ addEventListener('fetch', (event) =>
             method: event.request.method,
             query: event.request.query,
             params: event.request.content,
-          })
+          });
 
           const log = {
             content: event.request.content,
@@ -202,11 +208,16 @@ addEventListener('fetch', (event) =>
             ...event.request._log,
             // minimal keys required for processing
             ...keys,
+          };
+
+          try {
+            await logAudit(log);
+            console.log('Log successfully saved:', log);
+          } catch (logError) {
+            console.error('Error saving log:', logError);
           }
-          return deta
-            .Base('audit_logs')
-            .put(log, null, { expireIn: 60 * 60 * 24 }) // 1 day expireIn
         }
-      })
+      }
+    })()
   )
-)
+);

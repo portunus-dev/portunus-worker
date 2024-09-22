@@ -1,27 +1,34 @@
 name = "portunus-worker"
-type = "webpack"
-account_id = "ae0efcc5352882cf6f1ac3a3a40645ba"
-workers_dev = true
-route = ""
-zone_id = ""
-compatibility_date = "2021-11-29"
-kv_namespaces = [
-    # USERS_DEV (id and preview_id)
-    { binding = "USERS", id = "36df6ebcc3d6453e81094dd5730e30ee", preview_id = "36df6ebcc3d6453e81094dd5730e30ee" },
-    # KV_DEV (id), KV_PREVIEW (preview_id: 09f9d1a399dc4032a5d7f561e577872a)
-    { binding = "KV", id = "99aca84159ad4e7eb3f3048611680dd8", preview_id = "99aca84159ad4e7eb3f3048611680dd8" }
-]
-
-# [secrets]
-# TOKEN_SECRET
-# MAIL_PASS
-# DETA_KEY
-# DETA_ID
+account_id = "<>"
+workers_dev = false
+main = "index.js"
+compatibility_date = "2023-07-10"
+node_compat = true
 
 [env.production]
-zone_id = "5c9fc9248d20a5ed0b6b1f1a155ded67"
-route = "cli.mindswire.com/*"
 kv_namespaces = [
-    { binding = "KV", id = "ff28952fe8204640a5e7c55d390724ff" },
-    { binding = "USERS", id = "b4bc01b41e0643d88ffc52a348f721ce" }
+    { binding = "KV", preview_id = "<>", id = "<>" },
+    { binding = "USERS", preview_id = "<>", id = "<>" },
+    { binding = "TEAMS", preview_id = "<>", id = "<>" },
+    { binding = "PROJECTS", preview_id = "<>", id = "<>" },
+    { binding = "STAGES", preview_id = "<>", id = "<>" },
+    { binding = "AUDIT_REPORT", preview_id = "<>", id = "<>" },
+    { binding = "AUDIT_LOGS", preview_id = "<>", id = "<>" }
+]
+routes = [
+	{ pattern = "<>", custom_domain = true }
+]
+
+[env.dev]
+kv_namespaces = [
+    { binding = "KV", preview_id = "<>", id = "<>" },
+    { binding = "USERS", preview_id = "<>", id = "<>" },
+    { binding = "TEAMS", preview_id = "<>", id = "<>" },
+    { binding = "PROJECTS", preview_id = "<>", id = "<>" },
+    { binding = "STAGES", preview_id = "<>", id = "<>" },
+    { binding = "AUDIT_REPORT", preview_id = "<>", id = "<>" },
+    { binding = "AUDIT_LOGS", preview_id = "<>", id = "<>" }
+]
+routes = [
+	{ pattern = "<>", custom_domain = true }
 ]
