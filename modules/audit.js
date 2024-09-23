@@ -1,5 +1,3 @@
-const deta = require('./db')
-
 module.exports.minimalLog = ({ method, url, query, body }) => ({
   method,
   url,
@@ -60,37 +58,64 @@ const getQueryString = (query) => {
   return url.search
 }
 
-const getParamsString = (params) =>
-  Object.entries(params)
-    .map(([k, v]) => {
-      if (k === 'updates') {
-        return `add[${Object.keys(v.add).join(',')}], edit[${Object.keys(
-          v.edit
-        ).join(',')}], remove[${v.remove.join(',')}]`
-      }
-      return `${k}: ${v}`
-    })
-    .join(', ')
-
 module.exports.convertRequestToHumanReadableString = ({
   url,
   apiPath,
   method,
   params = {},
 }) => {
-  const text = (URL_METHOD_MAP[apiPath] || {})[method]
-  if (text) {
-    return `${apiPath} - ${text} - ${getQueryString(url)} - ${getParamsString(
-      params
-    )}`
+  const normalizedApiPath = apiPath.replace(/^\/|\/$/g, '');
+
+  const pathMap = URL_METHOD_MAP[normalizedApiPath];
+
+  console.log(`Incoming apiPath: "${apiPath}", normalizedApiPath: "${normalizedApiPath}", method: "${method}"`);
+
+  if (!pathMap) {
+    console.error(`Unknown apiPath: "${normalizedApiPath}". Make sure it's correct and exists in URL_METHOD_MAP.`);
   }
 
-  return 'Unknown operation'
-}
+  const text = pathMap ? pathMap[method] : undefined;
+
+  if (!text) {
+    console.error(`Unknown method "${method}" for apiPath "${normalizedApiPath}". Expected one of: ${Object.keys(pathMap || {})}`);
+  }
+
+  if (text) {
+    console.log(`Matched apiPath: "${normalizedApiPath}" and method: "${method}"`);
+    return `${normalizedApiPath} - ${text} - ${getQueryString(url) || ''} - ${getParamsString(params) || ''}`;
+  }
+
+  console.warn(`Returning "Unknown operation" for apiPath "${normalizedApiPath}" and method "${method}".`);
+  return 'Unknown operation';
+};
+
+const getParamsString = (params) =>
+  Object.entries(params)
+    .map(([k, v]) => {
+      if (k === 'updates') {
+        return `add[${Object.keys(v.add).join(',')}], edit[${Object.keys(v.edit).join(',')}], remove[${v.remove.join(',')}]`;
+      }
+      if (typeof v === 'object') {
+        return `${k}: ${JSON.stringify(v)}`;
+      }
+      return `${k}: ${v}`;
+    })
+    .join(', ');
 
 module.exports.getAuditHistory = async ({ type, key }) => {
-  // TODO: other fiels, like
-  const { auditHistory = [] } =
-    (await deta.Base('audit_report').get(`${type}::` + key)) || {}
-  return auditHistory
+  const auditReport = await AUDIT_REPORT.get(`${type}::${key}`, 'json');
+
+  const auditHistory = auditReport?.auditHistory || [];
+
+  return auditHistory;
+};
+
+module.exports.logAudit = async (log) => {
+  try {
+    const logKey = `${log.api_path}::${log.user.email}::${Date.now()}`;
+    await AUDIT_LOGS.put(logKey, JSON.stringify(log));
+    console.log('Audit log saved:', logKey); // Optional log for successful storage
+  } catch (error) {
+    console.error('Error saving audit log:', error); // Error handling
+  }
 }

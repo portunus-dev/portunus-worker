@@ -1,8 +1,7 @@
-const jwt = require('jsonwebtoken')
-const { totp } = require('otplib')
-const { v4: uuidv4 } = require('uuid')
+import jwt from '@tsndr/cloudflare-worker-jwt'
+const { generateOTP, verifyOTP } = require('./modules/otp.js');
 
-totp.options = { step: 60 * 5 } // 5 minutes for the OTPs
+const { v4: uuidv4 } = require('uuid')
 
 const { HTTPError, respondError, respondJSON } = require('./modules/utils')
 const {
@@ -41,8 +40,6 @@ const {
 } = require('./modules/projects')
 const { getAuditHistory } = require('./modules/audit')
 
-const deta = require('./modules/db')
-
 // W3C email regex
 const EMAIL_REGEXP = new RegExp(
   /^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/
@@ -63,6 +60,8 @@ module.exports.withRequiredName =
         )
       )
     }
+
+    content.name = content.name.toLowerCase();
   }
 
 /*
@@ -76,43 +75,52 @@ module.exports.root = ({ headers, cf }) =>
   respondJSON({
     payload: {
       cli: 'pip install -U print-env --pre',
-      'Web UI': 'https://portunus.netlify.app',
+      'Web UI': `${WEB_UI_URL}`,
       language: headers.get('Accept-Language'),
       cf,
     },
   })
 
-// UI handlers
 module.exports.listAll = async ({ user }) => {
   try {
-    const teams = await listTeams({ user })
+    const teams = await listTeams({ user });
+
     const teamProjects = await Promise.all(
-      teams.map((t) =>
-        deta
-          .Base('projects')
-          .fetch({ team: t.key }, {})
-          .then(({ items }) => items)
-      )
-    )
+      teams.map(async (t) => {
+        const projects = await PROJECTS.list({ prefix: `${t.key}::` });
+        
+        const projectDataPromises = projects.keys.map(({ name }) => {
+          return PROJECTS.get(name, 'json');
+        });
 
-    const projects = teamProjects.flat()
+        return Promise.all(projectDataPromises);
+      })
+    );
+
+    const projects = teamProjects.flat();
+
     const projectStages = await Promise.all(
-      projects.map((p) =>
-        deta
-          .Base('stages')
-          .fetch({ project: p.key }, {})
-          .then(({ items }) => items)
-      )
-    )
+      projects.map(async (p) => {
+        const stages = await STAGES.list({ prefix: `${p.key}::` });
 
-    const stages = projectStages.flat()
-    const payload = { teams, projects, stages }
+        const stageDataPromises = stages.keys.map((stageKey) => {
+          return STAGES.get(stageKey.name, 'json');
+        });
+    
+        return Promise.all(stageDataPromises);
+      })
+    );
+    
+    const stages = projectStages.flat(); 
 
-    return respondJSON({ payload })
+    const payload = { teams, projects, stages };
+
+    return respondJSON({ payload });
   } catch (err) {
-    return respondError(err)
+    return respondError(err);
   }
-}
+};
+
 
 module.exports.listTeams = async ({ user }) => {
   try {
@@ -141,7 +149,7 @@ module.exports.updateTeamName = async ({ user, content: { team, name } }) => {
     if (!user.admins.includes(team)) {
       throw new HTTPError('Invalid access: team admin required', 403)
     }
-    await updateTeamName({ team, name })
+    await updateTeamName({ user, team, name })
     return respondJSON({ payload: { key: team } })
   } catch (err) {
     return respondError(err)
@@ -190,43 +198,6 @@ module.exports.deleteTeam = async ({ user, content: { team } }) => {
   }
 }
 
-module.exports.listProjects = async ({ query, user }) => {
-  try {
-    const { team = user.teams[0] } = query
-    if (team && !user.teams.includes(team)) {
-      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
-    }
-    let projects = []
-    try {
-      ;({ items: projects } = await listProjects({ team }))
-    } catch (e) {
-      console.warn('Deta fetch error', e)
-    }
-
-    return respondJSON({ payload: { projects } })
-  } catch (err) {
-    return respondError(err)
-  }
-}
-
-module.exports.createProject = async ({ content: { team, name }, user }) => {
-  try {
-    if (!team) {
-      throw new HTTPError('Invalid team: team not supplied', 400)
-    }
-
-    if (!user.teams.includes(team)) {
-      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
-    }
-
-    const payload = await createProject({ team, project: name })
-
-    return respondJSON({ payload })
-  } catch (err) {
-    return respondError(err)
-  }
-}
-
 module.exports.updateProjectName = async ({
   user,
   content: { project, name },
@@ -251,39 +222,87 @@ module.exports.updateProjectName = async ({
 module.exports.deleteProject = async ({ user, content: { project } }) => {
   try {
     if (!project) {
-      throw new HTTPError('Invalid project: project not supplied', 400)
+      throw new HTTPError('Invalid project: project not supplied', 400);
     }
 
-    const team = project.split('::')[0]
+    const team = project.split('::')[0];
+
     if (!user.admins.includes(team)) {
-      throw new HTTPError('Invalid access: team admin required', 403)
+      throw new HTTPError('Invalid access: team admin required', 403);
     }
 
-    await deleteProject({ project })
-    return respondJSON({ payload: { key: project } })
+    await deleteProject({ project, team });
+
+    return respondJSON({ payload: { key: project } });
   } catch (err) {
-    return respondError(err)
+    return respondError(err);
   }
-}
+};
+
+module.exports.listProjects = async ({ query, user }) => {
+  try {
+    const { team = user.teams[0].key } = query;
+
+    const hasAccessToTeam = user.teams.some(t => t.key === team);
+
+    if (!hasAccessToTeam) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403);
+    }
+
+    let projects = [];
+    try {
+      const result = await listProjects({ team });
+      projects = result.items || [];
+    } catch (e) {
+      console.warn('Fetch error while listing projects:', e);
+    }
+
+    return respondJSON({ payload: { projects } });
+  } catch (err) {
+    return respondError(err);
+  }
+};
+
+module.exports.createProject = async ({ content: { team, name }, user }) => {
+  try {
+    if (!team) {
+      throw new HTTPError('Invalid team: team not supplied', 400);
+    }
+
+    const hasAccessToTeam = user.teams.some(t => t.key === team);
+
+    if (!hasAccessToTeam) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403);
+    }
+
+    const payload = await createProject({ team, project: name });
+
+    return respondJSON({ payload });
+  } catch (err) {
+    return respondError(err);
+  }
+};
 
 module.exports.listStages = async ({ query, user }) => {
   try {
-    const { team, project } = query
+    const { team, project } = query;
+    
     if (!team || !project) {
-      throw new HTTPError('Invalid request: team or project not supplied', 400)
+      throw new HTTPError('Invalid request: team or project not supplied', 400);
     }
 
-    if (!user.teams.includes(team)) {
-      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    const hasAccess = (user.teams || []).some((t) => t.key === team);
+    if (!hasAccess) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403);
     }
 
-    const payload = await listStages({ team, project })
+    const payload = await listStages({ team, project });
 
-    return respondJSON({ payload })
+    return respondJSON({ payload });
   } catch (err) {
-    return respondError(err)
+    return respondError(err);
   }
-}
+};
 
 module.exports.createStage = async ({
   content: { team, project, name },
@@ -291,39 +310,42 @@ module.exports.createStage = async ({
 }) => {
   try {
     if (!team || !project) {
-      throw new HTTPError('Invalid request: team or project not supplied', 400)
+      throw new HTTPError('Invalid request: team or project not supplied', 400);
     }
 
-    if (!user.teams.includes(team)) {
-      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    const hasAccess = (user.teams || []).some((t) => t.key === team);
+    if (!hasAccess) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403);
     }
 
-    const payload = await createStage({ team, project, stage: name })
+    const payload = await createStage({ team, project, stage: name });
 
-    return respondJSON({ payload })
+    return respondJSON({ payload });
   } catch (err) {
-    return respondError(err)
+    return respondError(err);
   }
-}
+};
 
 module.exports.deleteStage = async ({ content: { stage }, user }) => {
   try {
     if (!stage) {
-      throw new HTTPError('Invalid request: stage not supplied', 400)
+      throw new HTTPError('Invalid request: stage not supplied', 400);
     }
 
-    const team = stage.split('::')[0]
-    if (!user.admins.includes(team)) {
-      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+    const team = stage.split('::')[0];
+
+    const isAdmin = (user.admins || []).includes(team);
+    if (!isAdmin) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403);
     }
 
-    await deleteStage(stage)
+    await deleteStage(stage);
 
-    return respondJSON({ payload: { key: stage } })
+    return respondJSON({ payload: { key: stage } });
   } catch (err) {
-    return respondError(err)
+    return respondError(err);
   }
-}
+};
 
 module.exports.updateStageVars = async ({
   content: { stage, updates },
@@ -334,11 +356,11 @@ module.exports.updateStageVars = async ({
       throw new HTTPError('Invalid request: stage not supplied', 400)
     }
 
-    const team = stage.split('::')[0] // {team}::{project}::{stage}
+    const team = stage.split('::')[0]
 
-    if (!user.teams.includes(team)) {
-      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
-    }
+    if (!user.teams.some(t => t.key === team)) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403);
+    }    
 
     const changes = await updateStageVars({ stage, updates })
 
@@ -350,32 +372,41 @@ module.exports.updateStageVars = async ({
 
 module.exports.listUsers = async ({ query, user }) => {
   try {
-    const { team = user.teams[0], limit, last } = query
+    const { team = user.teams[0].key, limit, last } = query;
+
     if (!team) {
-      throw new HTTPError('Invalid request: team not supplied', 400)
+      throw new HTTPError('Invalid request: team not supplied', 400);
     }
-    if (!user.teams.includes(team)) {
-      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+
+    const hasAccess = (user.teams || []).some((t) => t.key === team);
+    if (!hasAccess) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403);
     }
-    const payload = await listTeamUsers({ team, limit, last })
-    return respondJSON({ payload })
+
+    const teamUsers = await listTeamUsers({ team, limit, last });
+
+    return respondJSON({ payload: { items: teamUsers, count: teamUsers.length } });
   } catch (err) {
-    return respondError(err)
+    return respondError(err);
   }
-}
+};
 
 module.exports.createUser = async ({ content: { email } }) => {
   try {
     if (!email || !EMAIL_REGEXP.test(email)) {
-      throw new HTTPError('valid email is required', 400)
+      throw new HTTPError('valid email is required', 400);
     }
-    const { key } = await createUser(email)
 
-    return respondJSON({ payload: { key } })
+    const lowercasedEmail = email.toLowerCase();
+
+    const { key } = await createUser(lowercasedEmail);
+
+    return respondJSON({ payload: { key } });
   } catch (err) {
-    return respondError(err)
+    return respondError(err);
   }
-}
+};
+
 
 module.exports.updateUserAudit = async ({ user, content: { audit } }) => {
   try {
@@ -386,7 +417,6 @@ module.exports.updateUserAudit = async ({ user, content: { audit } }) => {
       throw new HTTPError('Invalid request: invalid audit value', 400)
     }
     const booleanAudit = TRUE_VALUES.includes(audit) ? true : false
-    // TODO: generic route for user preferences?
     const update = {
       ...user,
       preferences: {
@@ -404,11 +434,9 @@ module.exports.updateUserAudit = async ({ user, content: { audit } }) => {
   }
 }
 
-module.exports.addUserToTeam = async ({
-  content: { userEmail, team },
-  user,
-}) => {
+module.exports.addUserToTeam = async ({ content: { userEmail, team }, user }) => {
   try {
+    userEmail = userEmail.toLowerCase();
     if (!team) {
       throw new HTTPError('Invalid team: team not supplied', 400)
     }
@@ -427,7 +455,15 @@ module.exports.addUserToTeam = async ({
       kvUser = await createUser(userEmail, { getKVUser: true })
     }
 
-    await addUserToTeam({ team, user: kvUser })
+    const teamKey = team; 
+
+    const fullTeamData = await TEAMS.get(teamKey, "json");
+    
+    if (!fullTeamData || !fullTeamData.key || !fullTeamData.name) {
+      throw new Error('Failed to retrieve team data or invalid team structure.');
+    }
+    
+    await addUserToTeam({ team: fullTeamData, user: kvUser });
 
     return respondJSON({ payload: { key: kvUser.key } })
   } catch (err) {
@@ -440,6 +476,7 @@ module.exports.removeUserFromTeam = async ({
   user,
 }) => {
   try {
+    userEmail = userEmail.toLowerCase();
     if (!team) {
       throw new HTTPError('Invalid team: team not supplied', 400)
     }
@@ -466,67 +503,78 @@ module.exports.removeUserFromTeam = async ({
   }
 }
 
-module.exports.addUserToAdmin = async ({
-  content: { userEmail, team },
-  user,
-}) => {
+module.exports.addUserToAdmin = async ({ content: { userEmail, team }, user }) => {
   try {
+    userEmail = userEmail.toLowerCase();
     if (!team) {
-      throw new HTTPError('Invalid team: team not supplied', 400)
+      throw new HTTPError('Invalid team: team not supplied', 400);
     }
 
     if (!userEmail || !EMAIL_REGEXP.test(userEmail)) {
-      throw new HTTPError('Invalid user: a valid email is required', 400)
+      throw new HTTPError('Invalid user: a valid email is required', 400);
     }
 
     if (!user.admins.includes(team)) {
-      throw new HTTPError('Invalid access: team admin required', 403)
+      throw new HTTPError('Invalid access: team admin required', 403);
     }
 
-    const kvUser = await USERS.get(userEmail, { type: 'json' })
+    let kvUser = await USERS.get(userEmail, { type: 'json' });
 
     if (!kvUser) {
-      throw new HTTPError('Invalid user: user not found', 400)
+      throw new HTTPError('Invalid user: user not found', 400);
     }
 
-    await addUserToAdmin({ team, user: kvUser })
+    const teamKey = team;
 
-    return respondJSON({ payload: { key: kvUser.key } })
+    const fullTeamData = await TEAMS.get(teamKey, "json");
+
+    if (!fullTeamData || !fullTeamData.key || !fullTeamData.name) {
+      throw new Error('Failed to retrieve team data or invalid team structure.');
+    }
+
+    await addUserToAdmin({ team: fullTeamData, user: kvUser });
+
+    return respondJSON({ payload: { key: kvUser.key } });
   } catch (err) {
-    return respondError(err)
+    return respondError(err);
   }
-}
+};
 
-module.exports.removeUserFromAdmin = async ({
-  content: { userEmail, team },
-  user,
-}) => {
+module.exports.removeUserFromAdmin = async ({ content: { userEmail, team }, user }) => {
   try {
+    userEmail = userEmail.toLowerCase();
     if (!team) {
-      throw new HTTPError('Invalid team: team not supplied', 400)
+      throw new HTTPError('Invalid team: team not supplied', 400);
     }
 
     if (!userEmail || !EMAIL_REGEXP.test(userEmail)) {
-      throw new HTTPError('Invalid user: a valid email is required', 400)
+      throw new HTTPError('Invalid user: a valid email is required', 400);
     }
 
     if (!user.admins.includes(team)) {
-      throw new HTTPError('Invalid access: team admin required', 403)
+      throw new HTTPError('Invalid access: team admin required', 403);
     }
 
-    const kvUser = await USERS.get(userEmail, { type: 'json' })
+    const kvUser = await USERS.get(userEmail, { type: 'json' });
 
     if (!kvUser) {
-      throw new HTTPError('Invalid user: user not found', 400)
+      throw new HTTPError('Invalid user: user not found', 400);
     }
 
-    await removeUserFromAdmin({ team, user: kvUser })
+    const fullTeamData = await TEAMS.get(team, "json");
 
-    return respondJSON({ payload: { key: kvUser.key } })
+    if (!fullTeamData) {
+      throw new Error('Failed to retrieve team data.');
+    }
+
+    await removeUserFromAdmin({ team: team, user: kvUser });
+
+    return respondJSON({ payload: { key: kvUser.key } });
   } catch (err) {
-    return respondError(err)
+    return respondError(err);
   }
-}
+};
+
 
 module.exports.deleteUser = async ({ user }) => {
   try {
@@ -538,132 +586,139 @@ module.exports.deleteUser = async ({ user }) => {
   }
 }
 
-// also shared for UI
 module.exports.getEnv = async ({ user, query }) => {
   try {
     const {
-      team = user.teams[0], // TODO: backward compatibility
+      team = user.teams[0]?.key,
       project: p,
       stage,
-    } = query
+    } = query;
+
     if (!p) {
-      throw new HTTPError('Invalid request: project not supplied', 400)
+      throw new HTTPError('Invalid request: project not supplied', 400);
     }
+
     if (!stage) {
-      throw new HTTPError('Invalid request: stage not supplied', 400)
+      throw new HTTPError('Invalid request: stage not supplied', 400);
     }
-    // TODO: remove !team check in future after dropping backward compatibility
-    if (!team || !user.teams.includes(team)) {
-      throw new HTTPError('Invalid portnus-jwt: no team access', 403)
+
+    const teamData = (user.teams || []).find((t) => t.key === team);
+    if (!teamData) {
+      throw new HTTPError('Invalid portnus-jwt: no team access', 403);
     }
-    const vars = (await getKVEnvs({ team, p, stage })) || {}
+
+    const vars = (await getKVEnvs({ team, p, stage })) || {};
+
     return respondJSON({
       payload: {
         vars,
         encrypted: false,
         user,
         team,
-        project: p, // TODO: perhaps stick with `p` for frontend read use-cases
+        project: p,
         stage,
       },
-    })
+    });
   } catch (err) {
-    return respondError(err)
+    return respondError(err);
   }
-}
+};
 
-// Auth handlers
 module.exports.getOTP = async ({ query, url, headers, cf = {} }) => {
-  const { user, origin } = query // user is email
-  if (!user || !EMAIL_REGEXP.test(user)) {
-    return respondError(new HTTPError('User email not supplied', 400))
-  }
-  let u = await fetchUser(user)
-  if (!u) {
-    u = await createUser(user)
-  } else if (!u.otp_secret) {
-    // legacy user without otp_secret
-    u.otp_secret = uuidv4()
-    if (u.otp_secret === u.jwt_uuid) {
-      // Note: this shouldn't happen anyway
-      throw new Error('OTP secret and JWT UUID are the same')
+  try {
+    let { user, origin } = query
+    user = user.toLowerCase();
+    if (!user || !EMAIL_REGEXP.test(user)) {
+      throw new HTTPError('User email not supplied', 400)
     }
-    u.updated = new Date()
-    await updateUser(u)
+    let u = await fetchUser(user)
+    if (!u) {
+      u = await createUser(user)
+    } else if (!u.otp_secret) {
+      u.otp_secret = uuidv4()
+      if (u.otp_secret === u.jwt_uuid) {
+        throw new Error('OTP secret and JWT UUID are the same')
+      }
+      u.updated = new Date()
+      await updateUser(u)
+    }
+    let otp;
+    otp = await generateOTP(u.otp_secret);
+    const timeRemaining = 30 - (Math.floor(Date.now() / 1000) % 30);
+    const expiresAt = new Date(Date.now() + timeRemaining * 1000);
+    const { origin: _origin } = new URL(url)
+    const defaultOrigin = `${_origin}/login`
+    const locale = (headers.get('Accept-Language') || '').split(',')[0] || 'en'
+    const timeZone = cf.timezone || 'UTC'
+    const plainEmail = [
+      `OTP: ${otp}`,
+      `Magic-Link: ${origin || defaultOrigin}?user=${user}&otp=${otp}`,
+      `Expires at: ${expiresAt.toLocaleString(locale, {
+        timeZone,
+        timeZoneName: 'long',
+      })}`,
+    ].join('\n')
+    await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${MAIL_PASS}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: u.email }] }],
+        from: { email: 'dev@mindswire.com' },
+        subject: 'Portunus Login OTP/Magic-Link',
+        content: [
+          {
+            type: 'text/plain',
+            value: plainEmail,
+          },
+        ],
+      }),
+    })
+    return respondJSON({ payload: { message: `OTP/Magic-Link sent to ${user}` } })
+  } catch (error) {
+    console.error("Error in getOTP: ", error);
+    throw error;
   }
-  // Use time-based OTP to avoid storing them in deta/KV
-  const otp = totp.generate(u.otp_secret)
-  const expiresAt = new Date(Date.now() + totp.timeRemaining() * 1000)
-  // TODO: tricky for local dev as the origin is mapped to remote cloudflare worker
-  const { origin: _origin } = new URL(url)
-  const defaultOrigin = `${_origin}/login`
-  // obtain locale and timezone from request for email `expiresAt` formatting
-  const locale = (headers.get('Accept-Language') || '').split(',')[0] || 'en'
-  const timeZone = cf.timezone || 'UTC'
-  // send email with OTP
-  // TODO: need to manually remove sendgrid tracking https://app.sendgrid.com/settings/tracking
-  // TODO: need to programmatically turn it off always https://stackoverflow.com/a/63360103/158111
-  // TODO: setup own SMTP server (mailu) or AWS SES for much cheaper delivery
-  const plainEmail = [
-    `OTP: ${otp}`,
-    `Magic-Link: ${origin || defaultOrigin}?user=${user}&otp=${otp}`,
-    `Expires at: ${expiresAt.toLocaleString(locale, {
-      timeZone,
-      timeZoneName: 'long',
-    })}`,
-  ].join('\n')
-  await fetch('https://api.sendgrid.com/v3/mail/send', {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${MAIL_PASS}`,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      personalizations: [{ to: [{ email: u.email }] }],
-      from: { email: 'dev@mindswire.com' },
-      subject: 'Portunus Login OTP/Magic-Link',
-      content: [
-        {
-          type: 'text/plain',
-          value: plainEmail,
-        },
-      ],
-    }),
-  })
-  return respondJSON({ payload: { message: `OTP/Magic-Link sent to ${user}` } })
 }
 
 module.exports.login = async ({ query }) => {
-  const { user, otp } = query
-  if (!user || !otp) {
-    return respondError(new HTTPError('User or OTP not supplied', 400))
+  try {
+    let { user, otp } = query;
+    user = user.toLowerCase();
+    if (!user || !otp) {
+      return respondError(new HTTPError('User or OTP not supplied', 400));
+    }
+    const { email, jwt_uuid, otp_secret } = (await fetchUser(user)) || {
+      teams: [],
+    };
+    if (!email || !otp_secret) {
+      return respondError(new HTTPError(`${user} not found`, 404));
+    }
+    
+    const isValid = await verifyOTP(otp, otp_secret);
+    if (!isValid) {
+      return respondError(new HTTPError('Invalid OTP', 403));
+    }
+    
+    try {
+      const token = await jwt.sign({ email, jwt_uuid }, TOKEN_SECRET);
+      return respondJSON({ payload: { jwt: token } });
+    } catch (err) {
+      return respondError(new HTTPError('JWT token generation failed', 500));
+    }
+  } catch (err) {
+    return respondError(new HTTPError('Internal server error', 500));
   }
-  const { email, jwt_uuid, otp_secret } = (await fetchUser(user)) || {
-    teams: [],
-  }
-  if (!email || !otp_secret) {
-    return respondError(new HTTPError(`${user} not found`, 404))
-  }
-  const isValid = totp.verify({ secret: otp_secret, token: otp })
-  if (!isValid) {
-    return respondError(new HTTPError('Invalid OTP', 403))
-  }
-  const token = jwt.sign({ email, jwt_uuid }, TOKEN_SECRET)
-  return respondJSON({ payload: { jwt: token } })
-}
+};
 
-// legacy direct JWT through email
 module.exports.getToken = async ({ query }) => {
-  // TODO: need to mimic getEnv to support multiple-team user
-  const { user } = query
+  let { user } = query
+  user = user.toLowerCase();
   const { email, jwt_uuid } = (await getKVUser(user)) || {}
 
-  // TODO: where do we generate jwt_uuid initially and how do we update it?
-  // if (!jwt_uuid) {
-  //   return respondError(new HTTPError(`${user} not found`, 404))
-  // }
-
-  const token = jwt.sign({ email, jwt_uuid }, TOKEN_SECRET)
+  const token = await jwt.sign({ email, jwt_uuid }, TOKEN_SECRET)
 
   try {
     await fetch('https://api.sendgrid.com/v3/mail/send', {
